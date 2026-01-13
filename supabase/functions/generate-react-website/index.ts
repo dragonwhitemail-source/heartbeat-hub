@@ -9,6 +9,192 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ============ JSX SYNTAX VALIDATION ============
+interface JsxValidationResult {
+  isValid: boolean;
+  errors: Array<{ file: string; line: number; message: string; severity: 'error' | 'warning' }>;
+  fixedContent?: string;
+}
+
+function validateAndFixJsx(filePath: string, content: string): JsxValidationResult {
+  const errors: JsxValidationResult['errors'] = [];
+  let fixedContent = content;
+  const lines = content.split('\n');
+  
+  // Only validate JS/JSX files
+  if (!/\.(js|jsx|tsx?)$/i.test(filePath)) {
+    return { isValid: true, errors };
+  }
+  
+  // 1. Check for unclosed string attributes (href="value<, src='value<, etc.)
+  const unclosedAttrRegex = /(\w+)=["']([^"'<>]*)<(?![a-zA-Z/])/g;
+  let match;
+  while ((match = unclosedAttrRegex.exec(content)) !== null) {
+    const lineNum = content.substring(0, match.index).split('\n').length;
+    errors.push({
+      file: filePath,
+      line: lineNum,
+      message: `Unclosed attribute value: ${match[1]}="${match[2]}<..."`,
+      severity: 'error'
+    });
+    // Try to fix: find the attribute and close it properly
+    const attrName = match[1];
+    const partialValue = match[2];
+    // Replace broken pattern with fixed version
+    fixedContent = fixedContent.replace(
+      new RegExp(`${attrName}=["']${escapeRegex(partialValue)}<[^>]*`, 'g'),
+      `${attrName}="${partialValue}"`
+    );
+  }
+  
+  // 2. Check for stray < characters that aren't tags
+  lines.forEach((line, idx) => {
+    // Skip JSX/HTML lines with valid tags
+    if (/<[a-zA-Z\/][^>]*>/.test(line)) return;
+    // Skip comparison operators
+    if (/[<>]=?(?=\s*\d|\s*['"`]|\s*[a-zA-Z_$])/.test(line)) return;
+    // Check for orphan < not part of a tag
+    const orphanLt = line.match(/["'][^"']*<[^"']*(?!>)["']/);
+    if (orphanLt) {
+      errors.push({
+        file: filePath,
+        line: idx + 1,
+        message: `Possible stray '<' in string: ${orphanLt[0].substring(0, 50)}...`,
+        severity: 'warning'
+      });
+    }
+  });
+  
+  // 3. Check for mismatched quotes in attributes
+  const brokenQuoteRegex = /(\w+)=["']([^"']{0,200})$/gm;
+  while ((match = brokenQuoteRegex.exec(content)) !== null) {
+    const lineNum = content.substring(0, match.index).split('\n').length;
+    // Only flag if line ends without closing quote
+    const lineContent = lines[lineNum - 1] || '';
+    const quoteCount = (lineContent.match(/["']/g) || []).length;
+    if (quoteCount % 2 !== 0) {
+      errors.push({
+        file: filePath,
+        line: lineNum,
+        message: `Unclosed quote in attribute: ${match[1]}`,
+        severity: 'error'
+      });
+      // Try to close the attribute
+      fixedContent = fixedContent.replace(
+        new RegExp(`(${match[1]}=["'])([^"']{0,200})$`, 'gm'),
+        '$1$2"'
+      );
+    }
+  }
+  
+  // 4. Check for truncated JSX (file ends mid-tag)
+  const trimmedContent = content.trim();
+  if (trimmedContent.endsWith('<') || 
+      /[<][a-zA-Z][^>]*$/.test(trimmedContent) ||
+      trimmedContent.endsWith('={')) {
+    errors.push({
+      file: filePath,
+      line: lines.length,
+      message: 'File appears to be truncated (ends mid-tag or mid-expression)',
+      severity: 'error'
+    });
+    // Try to add closing for common patterns
+    if (trimmedContent.endsWith('<')) {
+      fixedContent = fixedContent.trimEnd().slice(0, -1);
+    }
+  }
+  
+  // 5. Check for unclosed JSX tags (basic check)
+  const selfClosingTags = ['img', 'input', 'br', 'hr', 'meta', 'link', 'area', 'base', 'col', 'embed', 'param', 'source', 'track', 'wbr'];
+  const tagStack: Array<{tag: string; line: number}> = [];
+  const tagRegex = /<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*\/?>/g;
+  
+  while ((match = tagRegex.exec(content)) !== null) {
+    const fullMatch = match[0];
+    const tagName = match[1].toLowerCase();
+    const lineNum = content.substring(0, match.index).split('\n').length;
+    
+    if (selfClosingTags.includes(tagName) || fullMatch.endsWith('/>')) {
+      continue; // Self-closing, skip
+    }
+    
+    if (fullMatch.startsWith('</')) {
+      // Closing tag
+      if (tagStack.length > 0 && tagStack[tagStack.length - 1].tag === tagName) {
+        tagStack.pop();
+      }
+    } else {
+      // Opening tag
+      tagStack.push({ tag: tagName, line: lineNum });
+    }
+  }
+  
+  // Report unclosed tags (but don't fail - could be fragments)
+  if (tagStack.length > 0 && tagStack.length <= 3) {
+    tagStack.forEach(({ tag, line }) => {
+      errors.push({
+        file: filePath,
+        line,
+        message: `Potentially unclosed tag: <${tag}>`,
+        severity: 'warning'
+      });
+    });
+  }
+  
+  const hasErrors = errors.some(e => e.severity === 'error');
+  return {
+    isValid: !hasErrors,
+    errors,
+    fixedContent: hasErrors ? fixedContent : undefined
+  };
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function validateAllJsxFiles(files: Array<{ path: string; content: string }>): {
+  allValid: boolean;
+  totalErrors: number;
+  totalWarnings: number;
+  fixedFiles: Array<{ path: string; content: string }>;
+  report: string[];
+} {
+  const report: string[] = [];
+  let totalErrors = 0;
+  let totalWarnings = 0;
+  const fixedFiles = files.map(file => {
+    const result = validateAndFixJsx(file.path, file.content);
+    
+    result.errors.forEach(err => {
+      if (err.severity === 'error') totalErrors++;
+      else totalWarnings++;
+      report.push(`[${err.severity.toUpperCase()}] ${err.file}:${err.line} - ${err.message}`);
+    });
+    
+    return {
+      path: file.path,
+      content: result.fixedContent || file.content
+    };
+  });
+  
+  if (report.length > 0) {
+    console.log(`🔍 JSX Validation: ${totalErrors} errors, ${totalWarnings} warnings`);
+    report.slice(0, 10).forEach(r => console.log(r));
+    if (report.length > 10) console.log(`... and ${report.length - 10} more issues`);
+  } else {
+    console.log(`✅ JSX Validation: All files passed`);
+  }
+  
+  return {
+    allValid: totalErrors === 0,
+    totalErrors,
+    totalWarnings,
+    fixedFiles,
+    report
+  };
+}
+
 // ============ PHONE NUMBER VALIDATION & FIXING ============
 const INVALID_PHONE_PATTERNS = [
   /\b\d{3}[-.\s]?\d{4}\b(?!\d)/g,
@@ -1787,6 +1973,26 @@ async function runGeneration({
       rawResponse: rawText.substring(0, 500),
       totalCost,
     };
+  }
+
+  // ============ JSX VALIDATION & AUTO-FIX ============
+  // Validate all JS/JSX files for syntax errors BEFORE further processing
+  const validationResult = validateAllJsxFiles(files);
+  
+  if (!validationResult.allValid) {
+    console.warn(`⚠️ JSX validation found ${validationResult.totalErrors} errors - applying auto-fixes`);
+    // Use fixed files
+    files = validationResult.fixedFiles as typeof files;
+    
+    // Re-validate after fixes
+    const revalidation = validateAllJsxFiles(files);
+    if (!revalidation.allValid) {
+      console.error(`❌ JSX validation still has ${revalidation.totalErrors} errors after auto-fix`);
+      // Log detailed errors for debugging
+      revalidation.report.slice(0, 5).forEach(r => console.error(r));
+    } else {
+      console.log(`✅ All JSX errors were auto-fixed`);
+    }
   }
 
   // MANDATORY: Ensure deployment configuration files and cookie banner are always present
