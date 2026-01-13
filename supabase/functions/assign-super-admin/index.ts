@@ -62,41 +62,44 @@ serve(async (req) => {
     // Use service role to insert into user_roles (bypasses RLS)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if role already exists
-    const { data: existingRole } = await adminClient
-      .from("user_roles")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("role", "super_admin")
-      .maybeSingle();
+    // Assign both admin and super_admin roles
+    const rolesToAssign = ["admin", "super_admin"] as const;
+    const assignedRoles: string[] = [];
 
-    if (existingRole) {
-      console.log("Super admin role already assigned to user:", user.id);
-      return new Response(
-        JSON.stringify({ assigned: true, reason: "already_exists" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    for (const role of rolesToAssign) {
+      // Check if role already exists
+      const { data: existingRole } = await adminClient
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("role", role)
+        .maybeSingle();
+
+      if (existingRole) {
+        console.log(`Role ${role} already assigned to user:`, user.id);
+        assignedRoles.push(role);
+        continue;
+      }
+
+      // Assign role
+      const { error: insertError } = await adminClient
+        .from("user_roles")
+        .insert({
+          user_id: user.id,
+          role: role,
+        });
+
+      if (insertError) {
+        console.error(`Error assigning ${role} role:`, insertError);
+      } else {
+        console.log(`Role ${role} assigned to user:`, user.id);
+        assignedRoles.push(role);
+      }
     }
 
-    // Assign super_admin role
-    const { error: insertError } = await adminClient
-      .from("user_roles")
-      .insert({
-        user_id: user.id,
-        role: "super_admin",
-      });
-
-    if (insertError) {
-      console.error("Error assigning super admin role:", insertError);
-      return new Response(
-        JSON.stringify({ error: "Failed to assign role" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log("Super admin role assigned to user:", user.id);
+    console.log("All roles assigned to user:", user.id, assignedRoles);
     return new Response(
-      JSON.stringify({ assigned: true, reason: "success" }),
+      JSON.stringify({ assigned: true, roles: assignedRoles }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
