@@ -27,9 +27,9 @@ serve(async (req) => {
       );
     }
 
-    // Get password from request body
+    // Get parameters from request body
     const body = await req.json().catch(() => ({}));
-    const { password } = body;
+    const { password, createTeam, teamName } = body;
 
     if (!password) {
       return new Response(
@@ -112,12 +112,68 @@ serve(async (req) => {
       }
     }
 
+    // Create team if requested
+    let teamData = null;
+    if (createTeam && teamName) {
+      // Check if team already exists
+      const { data: existingTeam } = await adminClient
+        .from("teams")
+        .select("id, name")
+        .eq("name", teamName)
+        .maybeSingle();
+
+      if (existingTeam) {
+        console.log("Team already exists:", existingTeam.id);
+        teamData = existingTeam;
+      } else {
+        // Create team
+        const { data: newTeam, error: teamError } = await adminClient
+          .from("teams")
+          .insert({
+            name: teamName,
+            created_by: userId,
+            balance: 1000,
+          })
+          .select()
+          .single();
+
+        if (teamError) {
+          console.error("Error creating team:", teamError);
+        } else {
+          console.log("Created team:", newTeam.id);
+          teamData = newTeam;
+
+          // Add user as team owner
+          const { error: memberError } = await adminClient
+            .from("team_members")
+            .insert({
+              team_id: newTeam.id,
+              user_id: userId,
+              role: "owner",
+              status: "approved",
+            });
+
+          if (memberError) {
+            console.error("Error adding team member:", memberError);
+          } else {
+            console.log("Added user as team owner");
+          }
+
+          // Create team pricing
+          await adminClient
+            .from("team_pricing")
+            .insert({ team_id: newTeam.id });
+        }
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         userId,
         email: superAdminEmail,
         roles: assignedRoles,
+        team: teamData,
         message: "Admin user setup complete. You can now login.",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
