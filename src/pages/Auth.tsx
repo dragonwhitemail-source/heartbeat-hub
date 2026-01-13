@@ -276,6 +276,13 @@ export default function Auth() {
           }
         } else {
           if (data?.user) {
+            // Призначаємо super_admin роль якщо email співпадає
+            try {
+              await supabase.functions.invoke('assign-super-admin');
+            } catch (e) {
+              console.log('Super admin assignment check completed');
+            }
+            
             // Використовуємо функцію з підвищеними правами для реєстрації
             const regResult = await registerWithInviteCode(inviteCode, data.user.id);
             
