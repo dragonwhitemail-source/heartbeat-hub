@@ -2768,13 +2768,15 @@ export function WebsiteGenerator() {
                         <Crown className="h-4 w-4 text-amber-500" />
                         <span className="text-sm">Senior AI</span>
                       </label>
-                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer">
+                      <label className="flex items-center space-x-2 px-2 py-1.5 rounded hover:bg-muted cursor-not-allowed opacity-50">
                         <Checkbox
                           checked={selectedAiModels.includes("junior")}
-                          onCheckedChange={() => toggleAiModel("junior")}
+                          onCheckedChange={() => {}}
+                          disabled
                         />
                         <Zap className="h-4 w-4 text-blue-500" />
                         <span className="text-sm">Junior AI</span>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">Скоро</Badge>
                       </label>
                     </div>
                   </PopoverContent>
