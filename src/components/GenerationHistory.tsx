@@ -646,7 +646,7 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     setIsLoading(false);
   };
 
-  // Check for stale generations (older than 30 minutes) and mark them as failed with refund
+  // Check for stale generations (older than ~8 minutes) and mark them as failed with refund
   // NOTE: best-effort; must not spam backend when unhealthy.
   const staleCheckStateRef = useRef({
     failureCount: 0,
@@ -694,9 +694,9 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
 
       const result = await response.json();
 
-      // Success - reset failure count and set normal interval
+      // Success - reset failure count and keep checking regularly
       state.failureCount = 0;
-      state.nextAllowedAt = Date.now() + 5 * 60_000; // 5 min after success
+      state.nextAllowedAt = Date.now() + 60_000; // 1 min after success
 
       if (result.processed > 0) {
         console.log(`Stale cleanup: ${result.processed} processed, ${result.refunded} refunded`);

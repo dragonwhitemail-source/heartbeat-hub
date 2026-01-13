@@ -24,14 +24,16 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Find stale generations (older than 30 minutes)
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    // Find stale generations (older than 8 minutes)
+    // (React generation should normally complete in ~2-4 minutes; anything longer is very likely stuck)
+    const staleMinutes = 8;
+    const thresholdIso = new Date(Date.now() - staleMinutes * 60 * 1000).toISOString();
 
     const { data: staleItems, error: fetchError } = await supabase
       .from("generation_history")
       .select("id, user_id, sale_price")
       .in("status", ["pending", "generating"])
-      .lt("created_at", thirtyMinutesAgo);
+      .lt("created_at", thresholdIso);
 
     if (fetchError) {
       const errMsg = fetchError.message || String(fetchError);
@@ -91,7 +93,7 @@ serve(async (req) => {
           .from("generation_history")
           .update({
             status: "failed",
-            error_message: "Перевищено час очікування (30 хв). Зверніться в підтримку https://t.me/assanatraf",
+            error_message: `Перевищено час очікування (${staleMinutes} хв). Спробуйте ще раз або напишіть в підтримку https://t.me/assanatraf`,
             sale_price: 0, // Reset since refunded
           })
           .eq("id", item.id);
