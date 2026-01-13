@@ -62,8 +62,8 @@ serve(async (req) => {
     // Use service role to insert into user_roles (bypasses RLS)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Assign both admin and super_admin roles
-    const rolesToAssign = ["admin", "super_admin"] as const;
+    // Assign all roles for universal access
+    const rolesToAssign = ["admin", "super_admin", "user"] as const;
     const assignedRoles: string[] = [];
 
     for (const role of rolesToAssign) {
