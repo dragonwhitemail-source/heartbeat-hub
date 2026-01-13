@@ -1647,9 +1647,9 @@ async function runGeneration({
     ? "https://api.openai.com/v1/chat/completions"
     : "https://ai.gateway.lovable.dev/v1/chat/completions";
   const apiKey = isJunior ? OPENAI_API_KEY : LOVABLE_API_KEY;
-  const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-3-flash-preview";
-  // Use fast model for generation to stay within Edge runtime limits
-  const generateModel = isJunior ? "gpt-4o" : "google/gemini-3-flash-preview";
+  const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
+  // Use best model for high-quality complete generation
+  const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-pro";
 
   // Step 1: refined prompt with retry
   let agentResponse: Response;
@@ -1730,14 +1730,14 @@ async function runGeneration({
     ],
   };
 
-  // Set max_tokens to ensure complete generation while staying fast enough for Edge limits
-  // Junior: kept high (unused in UI for now). Senior: tuned for speed.
-  websiteRequestBody.max_tokens = isJunior ? 16000 : 10000;
+  // Set max_tokens high enough for complete multi-page React website
+  // 32000 tokens allows for comprehensive generation without truncation
+  websiteRequestBody.max_tokens = isJunior ? 16000 : 32000;
 
   let websiteResponse: Response;
   try {
-    // IMPORTANT: Edge Functions have tight execution limits even for background tasks.
-    // We do a single attempt with a shorter timeout so we don't get killed and leave the row stuck in "generating".
+    // Use longer timeout (3 minutes) for complete generation
+    // Edge Functions support up to 400s for background tasks
     websiteResponse = await fetchWithRetry(apiUrl, {
       method: "POST",
       headers: {
@@ -1745,7 +1745,7 @@ async function runGeneration({
         "Content-Type": "application/json",
       },
       body: JSON.stringify(websiteRequestBody),
-    }, 1, 0, 90000);
+    }, 2, 3000, 180000);
   } catch (fetchError) {
     const errorMsg = (fetchError as Error)?.message || String(fetchError);
     console.error("Website generation fetch failed:", errorMsg);
