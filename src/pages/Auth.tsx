@@ -209,37 +209,26 @@ export default function Auth() {
         }
         
         if (data?.user) {
-          // Перевіряємо чи користувач адмін - адміни пропускають перевірку ролі
+          // Перевіряємо чи користувач схвалений в команді
+          const { data: membership } = await supabase
+            .from("team_members")
+            .select("status")
+            .eq("user_id", data.user.id)
+            .eq("status", "approved")
+            .maybeSingle();
+          
+          // Перевіряємо чи користувач адмін
           const isAdmin = await checkIsAdmin(data.user.id);
           
-          if (!isAdmin) {
-            // Для не-адмінів перевіряємо вибір ролі
-            if (!selectedRole) {
-              await supabase.auth.signOut();
-              toast({
-                title: t("auth.selectRole"),
-                description: t("auth.selectRoleDescription"),
-                variant: "destructive",
-              });
-              setIsSubmitting(false);
-              return;
-            }
-            
-            // Перевіряємо роль користувача в команді
-            const roleCheck = await verifyUserRole(data.user.id, selectedRole);
-            
-            if (!roleCheck.valid) {
-              await supabase.auth.signOut();
-              toast({
-                title: t("auth.wrongRole"),
-                description: roleCheck.actualRole 
-                  ? `${t("auth.yourRoleIs")} ${roleCheck.actualRole}. ${t("auth.selectCorrectRole")}`
-                  : t("auth.notApproved"),
-                variant: "destructive",
-              });
-              setIsSubmitting(false);
-              return;
-            }
+          if (!isAdmin && !membership) {
+            await supabase.auth.signOut();
+            toast({
+              title: t("auth.accessDenied"),
+              description: t("auth.notApproved"),
+              variant: "destructive",
+            });
+            setIsSubmitting(false);
+            return;
           }
         }
         
@@ -467,31 +456,6 @@ export default function Auth() {
             </p>
           </div>
 
-          {/* Role Selection - Minimal inline style */}
-          {isLogin && (
-            <div className="mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <div className="flex items-center gap-1.5">
-                {roles.map((role) => (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => setSelectedRole(role.id)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                      selectedRole === role.id
-                        ? isDarkTheme 
-                          ? 'bg-white text-black shadow-lg shadow-white/20'
-                          : 'bg-black text-white shadow-lg shadow-black/20'
-                        : isDarkTheme
-                          ? 'bg-white/10 text-neutral-400 hover:bg-white/15 hover:text-white'
-                          : 'bg-black/5 text-neutral-500 hover:bg-black/10 hover:text-black'
-                    }`}
-                  >
-                    {role.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
@@ -591,7 +555,7 @@ export default function Auth() {
                   ? 'bg-white hover:bg-neutral-200 text-black shadow-white/10 hover:shadow-white/20' 
                   : 'bg-black hover:bg-neutral-800 text-white shadow-black/10 hover:shadow-black/20'
               }`}
-              disabled={isSubmitting || (isLogin && !selectedRole)}
+              disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
