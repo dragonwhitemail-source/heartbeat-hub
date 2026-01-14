@@ -2155,8 +2155,9 @@ Use random non-sequential digits for the local part!
 - MUST be clickable: <a href="mailto:info@sitename.com">info@sitename.com</a>
 - NEVER use generic emails like info@company.com or test@example.com
 
-**🙏 THANK YOU PAGE:**
-Every site needs thank-you.html with success message and link back to homepage.
+**🙏 THANK YOU PAGE - ТОЛЬКО ОДНА!:**
+🚨 thank-you.html должен быть ТОЛЬКО ОДИН файл! НИКОГДА не дублируй эту страницу!
+Every site needs ONE thank-you.html with success message and link back to homepage.
 
 **🗺️ GOOGLE MAPS:**
 Contact page MUST include working Google Maps embed matching the site's location.
@@ -2164,43 +2165,55 @@ Contact page MUST include working Google Maps embed matching the site's location
 **⚠️ DISCLAIMER:**
 Include in footer, adapted to site's industry/theme.
 
-**MANDATORY FILES - ALL MUST HAVE FULL CONTENT (NO EMPTY PAGES!):**
+🚨🚨🚨 **КРИТИЧЕСКИ ВАЖНО: МИНИМУМ КОНТЕНТА НА КАЖДОЙ СТРАНИЦЕ!** 🚨🚨🚨
 
-🚨🚨🚨 CRITICAL: EVERY PAGE MUST BE COMPLETE WITH REAL CONTENT! 🚨🚨🚨
-Empty pages or pages with just headers are UNACCEPTABLE. Each page MUST have:
-- Full header with working navigation
-- Main content area with REAL, SUBSTANTIAL content
-- Footer with contact info (phone + email)
-- Cookie banner HTML
+**ПРАВИЛА РАЗМЕРА СТРАНИЦ (ОБЯЗАТЕЛЬНО!):**
+Каждая страница (кроме contact и thank-you) должна иметь МИНИМУМ 5 полных экранов прокрутки!
 
-**REQUIRED FILES WITH MINIMUM CONTENT:**
-- index.html (hero + 6-8 quality sections, 5000+ chars minimum)
-- about.html (company story, mission, team, values - 3000+ chars minimum)
-- services.html (detailed services with cards, process steps - 3000+ chars minimum)
-- contact.html (form, contact details, working hours - 2000+ chars minimum)
-- thank-you.html (success message, next steps, back to home - 1000+ chars minimum)
-- privacy.html (EXACTLY 10 detailed sections - 4000+ chars minimum)
-- terms.html (EXACTLY 14 sections - 4000+ chars minimum)
-- cookie-policy.html (cookie table with 6+ cookies listed - 3000+ chars minimum)
-- styles.css (600+ lines, premium design with sticky footer CSS)
-- script.js (mobile menu, cookie banner, scroll animations, form validation)
+- index.html: МИНИМУМ 5 экранов прокрутки (5000+ символов), 8-10 секций
+- about.html: МИНИМУМ 5 экранов прокрутки (4000+ символов), 6-8 секций  
+- services.html: МИНИМУМ 5 экранов прокрутки (4000+ символов), 6-8 секций
+- portfolio.html: МИНИМУМ 5 экранов прокрутки (4000+ символов), 6-8 секций
+- faq.html: МИНИМУМ 5 экранов прокрутки (3000+ символов), 10+ вопросов
+- terms.html: МИНИМУМ 5 экранов прокрутки (4000+ символов), 14 разделов
+- privacy.html: МИНИМУМ 5 экранов прокрутки (4000+ символов), 10 разделов  
+- cookies.html: МИНИМУМ 5 экранов прокрутки (3000+ символов), таблица cookies
+- contact.html: 2-3 экрана (2000+ символов) - ИСКЛЮЧЕНИЕ
+- thank-you.html: 1 экран (1000+ символов) - ЕДИНСТВЕННАЯ короткая страница
+
+🚫 **ЗАПРЕТ ДУБЛИКАТОВ ФАЙЛОВ:**
+- НИКОГДА не создавай один и тот же файл дважды!
+- thank-you.html должен быть ТОЛЬКО ОДИН раз!
+- Каждый /* FILE: */ или <!-- FILE: --> маркер должен быть УНИКАЛЬНЫМ
+- Перед генерацией проверь что каждый файл упомянут только ОДИН раз
+
+🚫 **ЗАПРЕТ ПУСТЫХ СТРАНИЦ:**
+- НИКОГДА не генерируй страницы с пустым <main> или <body>
+- НИКОГДА не используй "Lorem ipsum" или "Content coming soon"
+- Каждая секция должна иметь РЕАЛЬНЫЙ контент
+- Минимум 3-4 параграфа текста в каждой секции
+
+**REQUIRED FILES (EACH FILE ONLY ONCE!):**
+- index.html (8-10 секций, 5+ экранов)
+- about.html (6-8 секций, 5+ экранов)
+- services.html (6-8 секций, 5+ экранов)
+- contact.html (форма + контакты, 2-3 экрана)
+- thank-you.html (ТОЛЬКО ОДИН!, 1 экран)
+- privacy.html (10 разделов, 5+ экранов)
+- terms.html (14 разделов, 5+ экранов)
+- cookie-policy.html (таблица cookies, 5+ экранов)
+- styles.css (600+ строк, sticky footer CSS)
+- script.js (меню, cookies, анимации)
 - robots.txt
 - sitemap.xml
 
-**🚫 EMPTY PAGE PROHIBITION:**
-- NEVER generate a page with just header/footer and no content
-- NEVER generate placeholder text like "Content coming soon" or "Lorem ipsum"
-- NEVER skip sections - each page must be FULLY implemented
-- If you cannot complete a page, DO NOT include it at all
-
-**QUALITY STANDARDS:**
-- Each page must be SUBSTANTIAL - no empty or minimal pages
-- Legal pages (privacy, terms, cookie) must each have 3000+ characters of real content
-- All sections must have proper styling and spacing
-- Mobile-first responsive design throughout
-- Smooth hover effects and transitions
-- Professional typography with proper hierarchy
-- FOOTER MUST BE VISIBLE ON ALL PAGES (use sticky footer CSS)
+**FOOTER - КРИТИЧЕСКИ ВАЖНО:**
+Footer ДОЛЖЕН отображаться на ВСЕХ страницах включая внутренние!
+CSS для sticky footer ОБЯЗАТЕЛЕН:
+html { height: 100%; }
+body { min-height: 100%; display: flex; flex-direction: column; }
+main { flex: 1 0 auto; }
+footer { flex-shrink: 0; margin-top: auto; }
 
 **CSS MUST INCLUDE:**
 - CSS variables in :root
