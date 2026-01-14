@@ -2658,7 +2658,7 @@ async function runGeneration({
   siteName?: string;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
-  console.log(`Using ${isJunior ? "Junior AI (Lovable Gemini Flash)" : "Senior AI (Lovable Gemini Pro)"} for HTML generation`);
+  console.log(`Using ${isJunior ? "Junior AI (Lovable Gemini Flash)" : "Senior AI (Lovable Gemini 3 Flash Preview)"} for HTML generation`);
 
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
@@ -2672,7 +2672,8 @@ async function runGeneration({
   const apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
   const apiKey = LOVABLE_API_KEY;
   const refineModel = "google/gemini-2.5-flash";
-  const generateModel = isJunior ? "google/gemini-2.5-flash" : "google/gemini-2.5-pro";
+  // NOTE: Senior generation uses Gemini 3 Flash Preview for better reliability/latency.
+  const generateModel = isJunior ? "google/gemini-2.5-flash" : "google/gemini-3-flash-preview";
 
   // Step 1: refined prompt (with retry logic, shorter timeout for refine step)
   let agentResponse: Response;
@@ -2754,8 +2755,8 @@ async function runGeneration({
   };
 
   // Set max_tokens for both models to ensure complete generation
-  // Junior: 16000 tokens, Senior: 32000 tokens for comprehensive multi-page websites
-  websiteRequestBody.max_tokens = isJunior ? 16000 : 32000;
+  // NOTE: Keep Senior output bounded to improve reliability within edge time limits.
+  websiteRequestBody.max_tokens = 16000;
 
   // Step 2: Website generation with retry logic (main generation needs longer timeout)
   let websiteResponse: Response;
@@ -2767,10 +2768,10 @@ async function runGeneration({
         "Content-Type": "application/json",
       },
       body: JSON.stringify(websiteRequestBody),
-    }, 2, 2000, 180000); // 2 retries, 2s delay, 3 min timeout for main generation
+    }, 1, 2000, 240000); // 1 attempt, 4 min timeout for main generation
   } catch (fetchError) {
     const errorMsg = (fetchError as Error)?.message || String(fetchError);
-    console.error("Website generation fetch failed after retries:", errorMsg);
+    console.error("Website generation fetch failed:", errorMsg);
     return { success: false, error: errorMsg, totalCost };
   }
 
