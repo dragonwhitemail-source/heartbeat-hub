@@ -249,12 +249,14 @@ function SingleHistoryItem({
     }
   };
 
+  const isGenerating = item.status === "generating";
+  
   return (
     <Collapsible open={expandedId === item.id}>
-      <div className={`rounded border ${compact ? "bg-background" : ""}`}>
+      <div className={`rounded border ${compact ? "bg-background" : ""} ${isGenerating ? "border-yellow-500/50 bg-yellow-500/5" : ""}`}>
         <CollapsibleTrigger asChild>
           <div
-            className={`flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors ${compact ? "px-2 py-1 gap-2" : "px-3 py-2 gap-3"}`}
+            className={`flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors ${compact ? "px-2 py-1 gap-2" : "px-3 py-2 gap-3"} ${isGenerating ? "bg-yellow-500/10" : ""}`}
             onClick={() => item.status === "completed" && onExpand(item)}
           >
             <div className={`flex items-center flex-1 min-w-0 ${compact ? "gap-2" : "gap-2"}`}>
