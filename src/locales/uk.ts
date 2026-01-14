@@ -72,7 +72,7 @@ export const uk = {
   auth: {
     loginTitle: "Вхід в акаунт",
     registerTitle: "Створити акаунт",
-    loginSubtitle: "Оберіть роль та введіть дані",
+    loginSubtitle: "Введіть ваші дані для входу",
     registerSubtitle: "Заповніть форму для реєстрації",
     email: "Email",
     password: "Пароль",
@@ -96,7 +96,8 @@ export const uk = {
     wrongRole: "Невірна роль",
     yourRoleIs: "Ваша роль:",
     selectCorrectRole: "Оберіть правильну роль.",
-    notApproved: "Вас не затверджено в жодній команді або роль не призначена.",
+    notApproved: "Вас не затверджено в жодній команді.",
+    accessDenied: "Доступ заборонено",
     loginSuccess: "Успішний вхід",
     welcome: "Ласкаво просимо!",
     registrationSuccess: "Реєстрація успішна",

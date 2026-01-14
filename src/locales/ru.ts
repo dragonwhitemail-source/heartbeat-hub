@@ -72,7 +72,7 @@ export const ru = {
   auth: {
     loginTitle: "Вход в аккаунт",
     registerTitle: "Создать аккаунт",
-    loginSubtitle: "Выберите роль и введите данные",
+    loginSubtitle: "Введите ваши данные для входа",
     registerSubtitle: "Заполните форму для регистрации",
     email: "Email",
     password: "Пароль",
@@ -96,7 +96,8 @@ export const ru = {
     wrongRole: "Неверная роль",
     yourRoleIs: "Ваша роль:",
     selectCorrectRole: "Выберите правильную роль.",
-    notApproved: "Вы не подтверждены ни в одной команде или роль не назначена.",
+    notApproved: "Вы не подтверждены ни в одной команде.",
+    accessDenied: "Доступ запрещен",
     loginSuccess: "Успешный вход",
     welcome: "Добро пожаловать!",
     registrationSuccess: "Регистрация успешна",
