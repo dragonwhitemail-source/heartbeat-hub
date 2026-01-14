@@ -467,10 +467,25 @@ function SingleHistoryItem({
               <span className="text-muted-foreground text-xs">{t("historyExtra.creationDate")}</span>
               <p className="text-sm">{new Date(item.created_at).toLocaleString("uk-UA")}</p>
             </div>
-            <div>
-              <span className="text-muted-foreground text-xs">{t("historyExtra.description")}</span>
-              <p className="text-sm mt-1 whitespace-pre-wrap">{item.prompt}</p>
-            </div>
+            <Collapsible>
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">{t("historyExtra.description")}</span>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-5 px-1.5 text-xs gap-1 text-muted-foreground hover:text-foreground">
+                    <ChevronDown className="h-3 w-3 transition-transform [[data-state=open]_&]:rotate-180" />
+                    <span className="[[data-state=closed]_&]:inline [[data-state=open]_&]:hidden">Розгорнути</span>
+                    <span className="[[data-state=closed]_&]:hidden [[data-state=open]_&]:inline">Згорнути</span>
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+              {/* Preview - first 100 chars */}
+              <p className="text-sm mt-1 text-muted-foreground line-clamp-2 [[data-state=open]_&]:hidden">
+                {item.prompt.slice(0, 150)}...
+              </p>
+              <CollapsibleContent className="animate-accordion-down">
+                <p className="text-sm mt-1 whitespace-pre-wrap max-h-[300px] overflow-y-auto">{item.prompt}</p>
+              </CollapsibleContent>
+            </Collapsible>
             {/* Improved prompt is only visible in admin panel Sites tab */}
           </div>
 
