@@ -1420,5 +1420,7 @@ export const ru = {
     stoppedByUser: "Остановлено пользователем",
     stoppingGenerations: "Остановка генераций",
     stoppingGenerationsDesc: "Ожидающие или выполняющиеся генерации будут отменены",
+    stoppedCount: "Отменено {count} генераций",
+    noActiveGenerations: "Нет активных генераций для остановки",
   },
 } as const;

@@ -3076,51 +3076,6 @@ export function WebsiteGenerator() {
                   </span>
                 </Button>
 
-                {/* Stop Generation Button - only show when generating */}
-                {isSubmitting && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="h-9 px-3 text-xs"
-                    onClick={async () => {
-                      stopGenerationRef.current = true;
-                      setIsStopping(true);
-                      
-                      // Also stop all pending generations in database for this user
-                      if (user) {
-                        try {
-                          const { error } = await supabase
-                            .from("generation_history")
-                            .update({ status: "cancelled", error_message: t("genForm.stoppedByUser") })
-                            .eq("user_id", user.id)
-                            .in("status", ["pending", "generating"]);
-                          
-                          if (!error) {
-                            toast({
-                              title: t("genForm.stoppingGenerations"),
-                              description: t("genForm.stoppingGenerationsDesc"),
-                            });
-                          }
-                        } catch (e) {
-                          console.error("Error stopping generations:", e);
-                        }
-                      }
-                      
-                      setIsStopping(false);
-                    }}
-                    disabled={isStopping}
-                  >
-                    {isStopping ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <>
-                        <Square className="h-3 w-3 mr-1" />
-                        {t("genForm.stop")}
-                      </>
-                    )}
-                  </Button>
-                )}
-
                 {/* Preset Management - same row */}
                 <Input
                   placeholder={t("genForm.preset")}
@@ -3180,6 +3135,54 @@ export function WebsiteGenerator() {
                   title={t("generatorExtra.clearParams")}
                 >
                   <Trash2 className="h-3 w-3" />
+                </Button>
+
+                {/* Stop All Generations Button - always visible */}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-9 px-3 text-xs"
+                  onClick={async () => {
+                    stopGenerationRef.current = true;
+                    setIsStopping(true);
+                    
+                    // Stop all pending/generating generations in database for this user
+                    if (user) {
+                      try {
+                        const { data, error } = await supabase
+                          .from("generation_history")
+                          .update({ status: "cancelled", error_message: t("genForm.stoppedByUser") })
+                          .eq("user_id", user.id)
+                          .in("status", ["pending", "generating"])
+                          .select("id");
+                        
+                        if (!error) {
+                          const count = data?.length || 0;
+                          toast({
+                            title: t("genForm.stoppingGenerations"),
+                            description: count > 0 
+                              ? t("genForm.stoppedCount").replace("{count}", String(count))
+                              : t("genForm.noActiveGenerations"),
+                          });
+                        }
+                      } catch (e) {
+                        console.error("Error stopping generations:", e);
+                      }
+                    }
+                    
+                    setIsStopping(false);
+                    setIsSubmitting(false);
+                  }}
+                  disabled={isStopping}
+                >
+                  {isStopping ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Square className="h-3 w-3 mr-1" />
+                      {t("genForm.stop")}
+                    </>
+                  )}
                 </Button>
 
                 {/* Spacer */}

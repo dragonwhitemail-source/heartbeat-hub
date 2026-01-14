@@ -1420,5 +1420,7 @@ export const uk = {
     stoppedByUser: "Зупинено користувачем",
     stoppingGenerations: "Зупинка генерацій",
     stoppingGenerationsDesc: "Генерації що очікують або виконуються будуть скасовані",
+    stoppedCount: "Скасовано {count} генерацій",
+    noActiveGenerations: "Немає активних генерацій для зупинки",
   },
 } as const;
