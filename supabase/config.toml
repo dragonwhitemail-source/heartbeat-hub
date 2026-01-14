@@ -44,5 +44,9 @@ verify_jwt = false
 [functions.check-super-admin]
 verify_jwt = false
 
+[functions.lovable-codex-proxy]
+verify_jwt = false
+max_duration_seconds = 600
+
 [functions.create-notification]
 verify_jwt = false
