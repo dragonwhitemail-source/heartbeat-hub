@@ -1414,5 +1414,11 @@ export const uk = {
     orderConfirm: "Так, запустити за",
     selectLanguageRequired: "Мова",
     selectGeoRequired: "Гео/Регіон",
+    stop: "Стоп",
+    generationStopped: "Генерацію зупинено",
+    generationStoppedDesc: "Завершено {completed} генерацій до зупинки",
+    stoppedByUser: "Зупинено користувачем",
+    stoppingGenerations: "Зупинка генерацій",
+    stoppingGenerationsDesc: "Генерації що очікують або виконуються будуть скасовані",
   },
 } as const;
