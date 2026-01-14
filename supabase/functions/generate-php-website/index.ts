@@ -2708,8 +2708,93 @@ async function runGeneration({
   }
 
   // Graceful degradation: accept results with minor issues
+  // Auto-add missing CSS/JS files as fallback (prevents generation failures)
+  const ensureCssJs = (filesList: GeneratedFile[]): GeneratedFile[] => {
+    const result = [...filesList];
+    const hasCss = result.some(f => f.path === "css/style.css");
+    const hasJs = result.some(f => f.path === "js/script.js");
+    
+    if (!hasCss) {
+      console.warn("⚠️ Auto-adding missing css/style.css");
+      result.push({
+        path: "css/style.css",
+        content: `/* Base Styles */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+header { background: #2c3e50; color: white; padding: 1rem 0; }
+header nav ul { list-style: none; display: flex; gap: 20px; }
+header nav a { color: white; text-decoration: none; }
+header nav a:hover { text-decoration: underline; }
+.hero { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4rem 0; text-align: center; }
+.hero h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+section { padding: 3rem 0; }
+.btn { display: inline-block; padding: 12px 24px; background: #3498db; color: white; text-decoration: none; border-radius: 5px; border: none; cursor: pointer; }
+.btn:hover { background: #2980b9; }
+footer { background: #2c3e50; color: white; padding: 2rem 0; text-align: center; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+.card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; }
+form { max-width: 600px; margin: 0 auto; }
+form input, form textarea, form select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; }
+form button { width: 100%; }
+@media (max-width: 768px) {
+  header nav ul { flex-direction: column; gap: 10px; }
+  .hero h1 { font-size: 1.8rem; }
+}
+/* Cookie Banner */
+.cookie-banner { position: fixed; bottom: 0; left: 0; right: 0; background: #333; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; }
+/* Disclaimer */
+.disclaimer { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; margin: 20px 0; border-radius: 5px; font-size: 0.9rem; color: #666; }`
+      });
+    }
+    
+    if (!hasJs) {
+      console.warn("⚠️ Auto-adding missing js/script.js");
+      result.push({
+        path: "js/script.js",
+        content: `// Mobile menu toggle
+document.addEventListener('DOMContentLoaded', function() {
+  const menuToggle = document.querySelector('.menu-toggle');
+  const nav = document.querySelector('nav ul');
+  if (menuToggle && nav) {
+    menuToggle.addEventListener('click', function() {
+      nav.classList.toggle('active');
+    });
+  }
+  
+  // Cookie consent
+  const cookieBanner = document.getElementById('cookie-banner');
+  const acceptCookies = document.getElementById('accept-cookies');
+  if (cookieBanner && acceptCookies) {
+    if (!localStorage.getItem('cookiesAccepted')) {
+      cookieBanner.style.display = 'flex';
+    }
+    acceptCookies.addEventListener('click', function() {
+      localStorage.setItem('cookiesAccepted', 'true');
+      cookieBanner.style.display = 'none';
+    });
+  }
+  
+  // Smooth scroll
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+});`
+      });
+    }
+    
+    return result;
+  };
+  
+  files = ensureCssJs(files);
+  
   const finalValidation = validateFiles(files);
-  const criticalFiles = ["index.php", "includes/header.php", "includes/footer.php", "css/style.css"];
+  // CSS and JS are now auto-generated, so only truly critical files matter
+  const criticalFiles = ["index.php", "includes/header.php", "includes/footer.php"];
   const missingCritical = finalValidation.missing.filter(f => criticalFiles.includes(f));
   
   const totalCost = refineCost + generateCost;
