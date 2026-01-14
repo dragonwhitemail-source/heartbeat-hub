@@ -209,10 +209,13 @@ export const AdminAdministratorsTab = () => {
     
     try {
       // Deactivate the invite code
-      await supabase
+      const { error } = await supabase
         .from("invite_codes")
         .update({ is_active: false })
-        .eq("code", inviteCode);
+        .eq("code", inviteCode)
+        .eq("is_admin_invite", true);
+
+      if (error) throw error;
 
       toast({
         title: t("common.success"),
@@ -221,6 +224,7 @@ export const AdminAdministratorsTab = () => {
 
       fetchData();
     } catch (error) {
+      console.error("Error rejecting admin:", error);
       toast({
         title: t("common.error"),
         description: t("errors.somethingWentWrong"),
