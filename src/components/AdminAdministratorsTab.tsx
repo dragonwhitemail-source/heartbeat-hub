@@ -104,8 +104,9 @@ export const AdminAdministratorsTab = () => {
     }));
 
     // Find pending admins (users who used admin invite codes but aren't admins yet)
+    // Only include active codes - rejected ones (is_active = false) should not show
     const adminUserIds = new Set(adminRoles?.map(r => r.user_id) || []);
-    const usedAdminCodes = inviteCodes?.filter(c => c.used_by && !adminUserIds.has(c.used_by)) || [];
+    const usedAdminCodes = inviteCodes?.filter(c => c.used_by && c.is_active && !adminUserIds.has(c.used_by)) || [];
     
     const pending: PendingAdmin[] = usedAdminCodes.map(code => ({
       user_id: code.used_by!,
