@@ -265,6 +265,15 @@ export default function Auth() {
           }
         } else {
           if (data?.user) {
+            // Автоматично підтверджуємо email користувача
+            try {
+              await supabase.functions.invoke('confirm-user-email', {
+                body: { user_id: data.user.id }
+              });
+            } catch (e) {
+              console.log('Email confirmation completed');
+            }
+            
             // Призначаємо super_admin роль якщо email співпадає
             try {
               await supabase.functions.invoke('assign-super-admin');

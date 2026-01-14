@@ -50,3 +50,6 @@ max_duration_seconds = 600
 
 [functions.create-notification]
 verify_jwt = false
+
+[functions.confirm-user-email]
+verify_jwt = false
