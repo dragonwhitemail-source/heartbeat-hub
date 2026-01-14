@@ -1834,8 +1834,8 @@ async function runGeneration({
     : "https://ai.gateway.lovable.dev/v1/chat/completions";
   const apiKey = isJunior ? OPENAI_API_KEY : LOVABLE_API_KEY;
   const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
-  // NOTE: Senior generation uses Gemini 3 Flash Preview for better reliability/latency.
-  const generateModel = isJunior ? "gpt-4o" : "google/gemini-3-flash-preview";
+  // NOTE: Senior generation uses Gemini 2.5 Flash for reliability (gemini-3 returns empty responses)
+  const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-flash";
 
   // Step 1: refined prompt with retry
   let agentResponse: Response;
