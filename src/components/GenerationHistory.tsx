@@ -1231,8 +1231,17 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
     } else {
       setExpandedId(item.id);
       if (item.files_data && item.files_data.length > 0) {
-        const indexFile = item.files_data.find((f) => f.path === "index.html");
-        setSelectedFile(indexFile || item.files_data[0]);
+        // For React projects, select App.js/App.jsx for proper preview rendering
+        // For HTML projects, select index.html
+        let defaultFile: GeneratedFile | undefined;
+        if (item.website_type === "react") {
+          defaultFile = item.files_data.find((f) => 
+            f.path.endsWith("App.js") || f.path.endsWith("App.jsx")
+          );
+        } else {
+          defaultFile = item.files_data.find((f) => f.path === "index.html");
+        }
+        setSelectedFile(defaultFile || item.files_data[0]);
       }
     }
   };
