@@ -107,7 +107,7 @@ export const AdminAdministratorsTab = () => {
       }
 
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-super-admin`,
+        `https://jyrjwcuwbuqkwccvdfst.supabase.co/functions/v1/verify-super-admin`,
         {
           method: "POST",
           headers: {
