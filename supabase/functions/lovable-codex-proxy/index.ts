@@ -235,6 +235,28 @@ body { margin: 0; }
     --wide: 1440px;
 }
 
+/* STICKY FOOTER LAYOUT - MANDATORY! */
+html, body {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main, .main-content {
+    flex: 1 0 auto;
+}
+    
+    /* Responsive Breakpoints */
+    --mobile: 320px;
+    --tablet: 768px;
+    --desktop: 1024px;
+    --wide: 1440px;
+}
+
 /* Base Reset */
 * {
     margin: 0;
@@ -280,12 +302,13 @@ body {
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
 }
 
-/* Footer - Never Broken */
-.site-footer {
+/* Footer - STICKY, Never Broken */
+.site-footer, footer, .footer {
+    flex-shrink: 0;
     background: var(--color-dark);
     color: white;
     padding: var(--space-lg) 0;
-    margin-top: auto;
+    margin-top: auto; /* Push footer to bottom */
 }
 
 /* Basic styles for all pages */
@@ -367,14 +390,49 @@ Generate EXCEPTIONAL multi-page website with CLEAN CODE (no markdown) and PROPER
 🍪 ABSOLUTELY CRITICAL - COOKIE CONSENT SYSTEM (NON-NEGOTIABLE):
 Every website MUST include a REAL, FUNCTIONAL cookie consent system that ACTUALLY COLLECTS AND STORES user choices:
 
-**COOKIE BANNER REQUIREMENTS:**
-1. Cookie banner HTML on EVERY page (in footer area or separate div)
-2. Banner appears on FIRST visit (check localStorage on page load)
-3. TWO buttons required: "Accept All" and "Decline/Reject"
-4. "Accept" button: localStorage.setItem('cookieConsent', 'accepted') + hide banner
-5. "Decline" button: localStorage.setItem('cookieConsent', 'declined') + hide banner  
-6. Banner NEVER shows again after user makes ANY choice
-7. Check localStorage.getItem('cookieConsent') on every page load
+**COOKIE BANNER HTML (include on EVERY page before </body>):**
+<div id="cookie-banner" class="cookie-banner" style="display: none;">
+  <div class="cookie-content">
+    <div class="cookie-text">
+      <h4>🍪 We use cookies</h4>
+      <p>This website uses cookies to enhance your browsing experience. By clicking "Accept", you consent to our use of cookies. You can manage your preferences or decline non-essential cookies.</p>
+    </div>
+    <div class="cookie-actions">
+      <button onclick="acceptCookies()" class="cookie-btn accept">Accept All</button>
+      <button onclick="declineCookies()" class="cookie-btn decline">Decline</button>
+      <a href="cookie-policy.html" class="cookie-link">Learn More</a>
+    </div>
+  </div>
+</div>
+
+**COOKIE BANNER CSS (MANDATORY in styles.css):**
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: white;
+  padding: 20px;
+  z-index: 9999;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+.cookie-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.cookie-text h4 { font-size: 1.1rem; margin-bottom: 8px; }
+.cookie-text p { font-size: 0.9rem; color: #b0b0b0; line-height: 1.5; }
+.cookie-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.cookie-btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.cookie-btn.accept { background: var(--primary-color, #3b82f6); color: white; }
+.cookie-btn.decline { background: transparent; border: 1px solid #666; color: white; }
+.cookie-link { color: #3b82f6; text-decoration: underline; }
 
 **COOKIE JAVASCRIPT (INCLUDE ON EVERY PAGE):**
 <script>
@@ -393,10 +451,11 @@ function declineCookies() {
 }
 </script>
 
-**COOKIE BANNER STYLING:**
-- Position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999
-- Background with shadow, comfortable padding
-- Clear Accept (primary) and Decline (secondary) buttons
+**COOKIE BANNER REQUIREMENTS:**
+1. Cookie banner HTML on EVERY page (in footer area or separate div)
+2. Banner appears on FIRST visit (check localStorage on page load)
+3. TWO buttons required: "Accept All" and "Decline/Reject"
+4. Banner NEVER shows again after user makes ANY choice
 
 OTHER CRITICAL REQUIREMENTS:
 - Include: terms.html, privacy.html, cookie-policy.html

@@ -1523,16 +1523,34 @@ textarea.form-control {
 }
 \`\`\`
 
-**🦶 PREMIUM FOOTER DESIGN - ABSOLUTELY MANDATORY:**
-Footer MUST be professional, compact, and well-structured:
+**🦶 PREMIUM FOOTER DESIGN - ABSOLUTELY MANDATORY (STICKY FOOTER!):**
+Footer MUST be professional, compact, well-structured AND ALWAYS VISIBLE at the bottom of the page!
+
+**CRITICAL: STICKY FOOTER - Footer must NEVER disappear when navigating between pages!**
 
 \`\`\`css
+/* STICKY FOOTER LAYOUT - MANDATORY! */
+html, body {
+  height: 100%;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+main, .main-content, .page-content {
+  flex: 1 0 auto;
+}
+.footer, footer {
+  flex-shrink: 0;
+}
+
 /* PREMIUM FOOTER STYLES */
 .footer {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   color: #e0e0e0;
   padding: 60px 0 30px;
-  margin-top: 80px;
+  margin-top: auto; /* Push footer to bottom */
 }
 
 .footer-container {
@@ -1964,8 +1982,103 @@ The website MUST be generated in the EXACT language specified:
 - ALL links MUST use: href="about.html" NOT href="/about"
 - ALWAYS include .html extension
 
-**🍪 COOKIE CONSENT - MANDATORY:**
-Include working cookie banner with localStorage:
+**🍪 COOKIE CONSENT - MANDATORY WITH TEXT:**
+Include working cookie banner with localStorage AND VISIBLE TEXT:
+
+**COOKIE BANNER HTML (include on EVERY page before </body>):**
+\`\`\`html
+<div id="cookie-banner" class="cookie-banner" style="display: none;">
+  <div class="cookie-content">
+    <div class="cookie-text">
+      <h4>🍪 We use cookies</h4>
+      <p>This website uses cookies to enhance your browsing experience. By clicking "Accept", you consent to our use of cookies. You can manage your preferences or decline non-essential cookies.</p>
+    </div>
+    <div class="cookie-actions">
+      <button onclick="acceptCookies()" class="cookie-btn accept">Accept All</button>
+      <button onclick="declineCookies()" class="cookie-btn decline">Decline</button>
+      <a href="cookie-policy.html" class="cookie-link">Learn More</a>
+    </div>
+  </div>
+</div>
+\`\`\`
+
+**COOKIE BANNER CSS (MANDATORY):**
+\`\`\`css
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: white;
+  padding: 20px;
+  z-index: 9999;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+.cookie-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.cookie-text h4 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+.cookie-text p {
+  font-size: 0.9rem;
+  color: #b0b0b0;
+  line-height: 1.5;
+}
+.cookie-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.cookie-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.cookie-btn.accept {
+  background: var(--primary-color, #3b82f6);
+  color: white;
+}
+.cookie-btn.accept:hover {
+  background: var(--primary-dark, #2563eb);
+}
+.cookie-btn.decline {
+  background: transparent;
+  border: 1px solid #666;
+  color: white;
+}
+.cookie-btn.decline:hover {
+  background: rgba(255,255,255,0.1);
+}
+.cookie-link {
+  color: #3b82f6;
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+@media (max-width: 768px) {
+  .cookie-content {
+    flex-direction: column;
+    text-align: center;
+  }
+  .cookie-actions {
+    justify-content: center;
+  }
+}
+\`\`\`
+
+**COOKIE JAVASCRIPT (include on EVERY page):**
 \`\`\`javascript
 document.addEventListener('DOMContentLoaded', function() {
   const cookieConsent = localStorage.getItem('cookieConsent');
@@ -1989,22 +2102,47 @@ NEVER include prices, statistics, percentages, years of experience, client count
 ALLOWED: Phone numbers, postal codes, copyright year.
 Use alternatives: "Contact for pricing", "Experienced team", "Many satisfied clients"
 
-**📞 PHONE NUMBERS - MUST BE REALISTIC BY COUNTRY:**
-- NEVER use fake numbers like 123456, 555-1234, or placeholder XXX
-- Generate REALISTIC phone numbers based on GEO/COUNTRY:
-  * Germany: +49 30 2897 6543, +49 89 4521 7890
-  * Poland: +48 22 456 78 90, +48 12 345 67 89
-  * Spain: +34 912 456 789, +34 932 876 543
-  * France: +33 1 42 68 53 00, +33 4 93 45 67 89
-  * Italy: +39 06 8745 6321, +39 02 7654 3210
-  * UK: +44 20 7946 0958, +44 161 496 0753
-  * USA: +1 (212) 555-0147, +1 (415) 555-0198
-  * Netherlands: +31 20 794 5682, +31 10 456 7890
-  * Czech Republic: +420 221 456 789, +420 257 891 234
-  * Ukraine: +380 44 456 7890, +380 67 123 4567
-  * Russia: +7 495 123 4567, +7 812 456 7890
-  * Default international: Use the country code + realistic local format
-- MUST be clickable: <a href="tel:+14155550147">+1 (415) 555-0147</a>
+**📞 PHONE NUMBERS - MUST BE REALISTIC BY COUNTRY (CRITICAL!):**
+
+🚨🚨🚨 PHONE NUMBER RULES - ABSOLUTELY MANDATORY 🚨🚨🚨
+
+**NEVER USE THESE FAKE PATTERNS:**
+- ❌ 123456789, 987654321, 111111111
+- ❌ 555-1234, 555-0000, 555-xxxx
+- ❌ +1234567890, +0000000000
+- ❌ XXX-XXX-XXXX, (XXX) XXX-XXXX
+- ❌ Any sequential numbers
+- ❌ Any repeated digits (111, 222, 333)
+
+**GENERATE REALISTIC RANDOM PHONE NUMBERS:**
+Each phone number must look NATURAL and REALISTIC, as if it's a real business phone.
+Use random non-sequential digits for the local part!
+
+**EXAMPLES BY COUNTRY (use similar random patterns):**
+* Germany: +49 30 2847 6193, +49 89 4182 7645, +49 211 8392 4751
+* Poland: +48 22 847 31 96, +48 12 693 28 47, +48 61 729 38 14
+* Spain: +34 912 847 361, +34 932 618 497, +34 954 728 193
+* France: +33 1 47 82 93 16, +33 4 93 71 28 46, +33 5 61 82 39 47
+* Italy: +39 06 8291 4736, +39 02 7184 9362, +39 055 281 9473
+* UK: +44 20 7829 4163, +44 161 829 3746, +44 131 472 8193
+* USA: +1 (212) 847-3192, +1 (415) 629-4817, +1 (312) 847-2963
+* Netherlands: +31 20 682 9174, +31 10 847 2936, +31 30 729 1846
+* Czech Republic: +420 221 847 293, +420 257 618 492, +420 377 829 146
+* Ireland: +353 1 829 4736, +353 21 618 2947, +353 61 729 3841
+* Ukraine: +380 44 829 4716, +380 67 182 9473, +380 50 618 2947
+* Russia: +7 495 829 4716, +7 812 618 2947, +7 343 729 1846
+* Austria: +43 1 829 4716, +43 512 618 294, +43 662 729 184
+* Belgium: +32 2 829 47 16, +32 3 618 29 47, +32 9 729 18 46
+* Portugal: +351 21 829 4716, +351 22 618 2947, +351 253 729 184
+* Romania: +40 21 829 4716, +40 31 618 2947, +40 264 729 184
+* Default: Use country code + city code + 7 random non-sequential digits
+
+**PHONE NUMBER FORMAT REQUIREMENTS:**
+- MUST include country code with +
+- MUST have proper spacing/formatting for the country
+- MUST be at least 10 digits total (excluding formatting)
+- MUST be clickable: <a href="tel:+31206829174">+31 20 682 9174</a>
+- tel: href MUST have digits only (no spaces): tel:+31206829174
 
 **📧 EMAILS - MUST MATCH SITE DOMAIN:**
 - Email MUST use the site's domain name
@@ -2026,20 +2164,34 @@ Contact page MUST include working Google Maps embed matching the site's location
 **⚠️ DISCLAIMER:**
 Include in footer, adapted to site's industry/theme.
 
-**MANDATORY FILES:**
-- index.html (hero + 6-8 quality sections with smooth animations)
-- about.html (company story, mission, team, values sections)
-- services.html (detailed services with cards, process steps, benefits)
-- contact.html (form, map embed, working hours, multiple contact methods)
-- thank-you.html (success message, next steps, back to home)
-- privacy.html (EXACTLY 10 detailed sections with substantial content each - Introduction, Data We Collect, How We Use Data, Data Sharing, Data Security, Your Rights, Cookies, Third Parties, Data Retention, Contact & Changes)
-- terms.html (EXACTLY 14 sections - Acceptance, Definitions, Services, User Accounts, Acceptable Use, Intellectual Property, User Content, Privacy, Disclaimers, Limitation of Liability, Indemnification, Termination, Changes, Governing Law)
-- cookie-policy.html (What Are Cookies, Types We Use, Cookie Table with ALL cookies listed, How to Manage, Third-Party Cookies, Policy Updates)
-- styles.css (600+ lines, premium design system with CSS variables, animations, responsive breakpoints)
+**MANDATORY FILES - ALL MUST HAVE FULL CONTENT (NO EMPTY PAGES!):**
+
+🚨🚨🚨 CRITICAL: EVERY PAGE MUST BE COMPLETE WITH REAL CONTENT! 🚨🚨🚨
+Empty pages or pages with just headers are UNACCEPTABLE. Each page MUST have:
+- Full header with working navigation
+- Main content area with REAL, SUBSTANTIAL content
+- Footer with contact info (phone + email)
+- Cookie banner HTML
+
+**REQUIRED FILES WITH MINIMUM CONTENT:**
+- index.html (hero + 6-8 quality sections, 5000+ chars minimum)
+- about.html (company story, mission, team, values - 3000+ chars minimum)
+- services.html (detailed services with cards, process steps - 3000+ chars minimum)
+- contact.html (form, contact details, working hours - 2000+ chars minimum)
+- thank-you.html (success message, next steps, back to home - 1000+ chars minimum)
+- privacy.html (EXACTLY 10 detailed sections - 4000+ chars minimum)
+- terms.html (EXACTLY 14 sections - 4000+ chars minimum)
+- cookie-policy.html (cookie table with 6+ cookies listed - 3000+ chars minimum)
+- styles.css (600+ lines, premium design with sticky footer CSS)
 - script.js (mobile menu, cookie banner, scroll animations, form validation)
-- cookie-banner.js (separate file for cookie consent logic)
 - robots.txt
 - sitemap.xml
+
+**🚫 EMPTY PAGE PROHIBITION:**
+- NEVER generate a page with just header/footer and no content
+- NEVER generate placeholder text like "Content coming soon" or "Lorem ipsum"
+- NEVER skip sections - each page must be FULLY implemented
+- If you cannot complete a page, DO NOT include it at all
 
 **QUALITY STANDARDS:**
 - Each page must be SUBSTANTIAL - no empty or minimal pages
@@ -2048,6 +2200,7 @@ Include in footer, adapted to site's industry/theme.
 - Mobile-first responsive design throughout
 - Smooth hover effects and transitions
 - Professional typography with proper hierarchy
+- FOOTER MUST BE VISIBLE ON ALL PAGES (use sticky footer CSS)
 
 **CSS MUST INCLUDE:**
 - CSS variables in :root
