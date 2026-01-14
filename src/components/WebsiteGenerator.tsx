@@ -1520,17 +1520,10 @@ export function WebsiteGenerator() {
           description: `${t("genForm.generationsLaunched")} ${successCount} ${t("genForm.generations")}${failCount > 0 ? `, ${failCount} ${t("genForm.errors")}` : ""}. ${t("genForm.trackInHistory")}`,
         });
         
-        // Clear generation parameters after successful generation to prevent accidental re-generation
-        setSelectedLanguages([]);
-        setCustomLanguage("");
-        setIsOtherSelected(false);
+        // Only clear style settings, keep language and geo for next generation
         setSelectedStyles([]);
         setCustomStyle("");
         setIsOtherStyleSelected(false);
-        setSelectedGeo("");
-        setCustomGeo("");
-        setIsOtherGeoSelected(false);
-        setSitesPerLanguage(1);
       }
       
       if (failCount > 0 && successCount === 0) {
