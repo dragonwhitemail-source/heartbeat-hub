@@ -574,112 +574,129 @@ function extractKeywordsFallback(prompt: string): string {
 }
 
 // ============================================================================
-// FILE PARSING - Multiple formats support (from n8n workflow)
+// FILE PARSING - Exact n8n workflow logic
 // ============================================================================
 function parseFilesFromResponse(responseText: string): GeneratedFile[] {
   const files: GeneratedFile[] = [];
   const normalizedText = responseText.replace(/\r\n/g, "\n");
   const filesMap = new Map<string, string>();
 
-  console.log("🔍 Raw response preview (first 500 chars):", normalizedText.substring(0, 500));
+  console.log("=== DEBUG: PARSING RESPONSE ===");
+  console.log("Response length:", responseText.length);
+  console.log("Preview (first 500 chars):", normalizedText.substring(0, 500));
 
-  const upsertFile = (path: string, content: string, source: string) => {
-    const cleanPath = path.trim();
-    let cleanContent = content.trim();
+  // n8n patterns - check ALL patterns simultaneously (not as fallbacks)
+  const filePatterns = [
+    // Pattern 1: HTML comment format <!-- FILE: ... -->
+    /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g,
     
-    // Remove markdown code blocks
-    cleanContent = cleanContent
-      .replace(/^```[a-z]*\n/, '')
-      .replace(/\n```$/, '')
-      .replace(/^`{3,}/, '')
-      .replace(/`{3,}$/, '');
+    // Pattern 2: CSS/JS comment format /* FILE: ... */
+    /\/\* FILE: ([^*]+) \*\/([\s\S]*?)(?=\/\* FILE: |$)/g,
     
-    if (!cleanContent || cleanContent.length < 10) return;
-    
-    filesMap.set(cleanPath, cleanContent);
-    console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
-  };
+    // Pattern 3: Mixed format with newline termination
+    /\/\* FILE: ([^*]+) \*\/\s*([\s\S]*?)(?=\n\/\* FILE: |\n```|$)/g
+  ];
 
-  // Pattern 1: <!-- FILE: filename.ext -->
-  const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
-  let match;
-  while ((match = filePattern1.exec(normalizedText)) !== null) {
-    upsertFile(match[1], match[2], "format1-html-comment");
-  }
+  let matchFound = false;
 
-  // Pattern 2: /* FILE: filename.ext */
-  if (filesMap.size === 0) {
-    console.log("Trying CSS comment format...");
-    const filePattern2 = /\/\* FILE: ([^*]+) \*\/([\s\S]*?)(?=\/\* FILE: |$)/g;
-    while ((match = filePattern2.exec(normalizedText)) !== null) {
-      upsertFile(match[1], match[2], "format2-css-comment");
+  for (const pattern of filePatterns) {
+    pattern.lastIndex = 0; // Reset search position
+    let match;
+    
+    while ((match = pattern.exec(normalizedText)) !== null) {
+      const fileName = match[1].trim();
+      let fileContent = match[2].trim();
+      
+      console.log(`🔍 Pattern match: ${fileName}`);
+      
+      // Clean content from markdown artifacts (exact n8n logic)
+      fileContent = fileContent
+        .replace(/^```[a-z]*\n/, '')  // Remove code block start
+        .replace(/\n```$/, '')         // Remove code block end
+        .replace(/^`{3,}/, '')         // Remove any ` at start
+        .replace(/`{3,}$/, '');        // Remove any ` at end
+      
+      // Check if content contains next file marker
+      const nextFileMarker = fileContent.match(/<!-- FILE: |\/\* FILE: /);
+      if (nextFileMarker && nextFileMarker.index !== undefined) {
+        fileContent = fileContent.substring(0, nextFileMarker.index).trim();
+      }
+      
+      if (fileContent && fileContent.length > 10) {
+        // Determine file extension if not present
+        let finalFileName = fileName;
+        if (!fileName.includes('.')) {
+          if (fileContent.includes('<!DOCTYPE') || fileContent.includes('<html')) {
+            finalFileName = fileName + '.html';
+          } else if (fileContent.includes(':root') || fileContent.includes('{') && fileContent.includes('}')) {
+            finalFileName = fileName + '.css';
+          } else {
+            finalFileName = fileName + '.txt';
+          }
+        }
+        
+        filesMap.set(finalFileName, fileContent);
+        console.log(`✅ Found file: ${finalFileName} (${fileContent.length} chars)`);
+        matchFound = true;
+      }
     }
   }
 
-  // Pattern 3: Code blocks with filenames
-  if (filesMap.size === 0) {
-    console.log("Trying code block format...");
-    const codeBlockPattern = /```([a-z]+)?\n(?:<!--\s*([a-zA-Z0-9_\-\/\.]+\.[a-z]+)\s*-->|\/\*\s*([a-zA-Z0-9_\-\/\.]+\.[a-z]+)\s*\*\/|\/\/\s*([a-zA-Z0-9_\-\/\.]+\.[a-z]+))?\s*\n?([\s\S]*?)```/gi;
+  // Alternative parsing for very clean output (n8n fallback logic)
+  if (!matchFound) {
+    console.log("🔍 Trying alternative parsing...");
     
-    while ((match = codeBlockPattern.exec(normalizedText)) !== null) {
-      const lang = match[1] || "";
-      const fileName = match[2] || match[3] || match[4];
-      const content = match[5] || "";
-      
-      if (fileName) {
-        upsertFile(fileName, content, "codeblock-named");
-      } else if (lang && content.length > 50) {
-        const inferredName = lang === "html" ? "index.html" : lang === "css" ? "styles.css" : lang === "js" || lang === "javascript" ? "script.js" : null;
-        if (inferredName && !filesMap.has(inferredName)) {
-          upsertFile(inferredName, content, "codeblock-inferred");
+    // Split by explicit file markers
+    const fileSections = normalizedText.split(/(?:\/\* FILE: |<!-- FILE: )/);
+    
+    if (fileSections.length > 1) {
+      for (let i = 1; i < fileSections.length; i++) {
+        const section = fileSections[i].trim();
+        const firstLineEnd = section.indexOf('\n');
+        
+        if (firstLineEnd > 0) {
+          const fileName = section.substring(0, firstLineEnd)
+            .replace(/\*\/$/, '')
+            .replace(/-->$/, '')
+            .trim();
+          let fileContent = section.substring(firstLineEnd + 1).trim();
+          
+          // Trim to next marker
+          const nextMarker = fileContent.match(/(?:\/\* FILE: |<!-- FILE: )/);
+          if (nextMarker && nextMarker.index !== undefined) {
+            fileContent = fileContent.substring(0, nextMarker.index).trim();
+          }
+          
+          if (fileName && fileContent && fileContent.length > 10) {
+            filesMap.set(fileName, fileContent);
+            console.log(`✅ Alt found: ${fileName} (${fileContent.length} chars)`);
+          }
         }
       }
     }
   }
 
-  // Pattern 4: OpenAI markdown headings format
+  // Gemini/code block fallback patterns
   if (filesMap.size === 0) {
-    console.log("Trying OpenAI markdown headings format...");
-    const headerPattern = /^#+\s*(?:File:\s*)?["`']?([a-zA-Z0-9_\-\/]+\.[a-zA-Z0-9]+)["`']?\s*$/gm;
-    const headers: { path: string; start: number; contentStart: number }[] = [];
+    console.log("🔍 Trying code block patterns...");
     
-    while ((match = headerPattern.exec(normalizedText)) !== null) {
-      headers.push({ 
-        path: match[1], 
-        start: match.index,
-        contentStart: match.index + match[0].length 
-      });
-    }
-    
-    for (let i = 0; i < headers.length; i++) {
-      const start = headers[i].contentStart;
-      const end = headers[i + 1]?.start ?? normalizedText.length;
-      const chunk = normalizedText.slice(start, end);
-      upsertFile(headers[i].path, chunk, "format-markdown-heading");
-    }
-  }
-
-  // Pattern 5: Simple filename on its own line followed by code
-  if (filesMap.size === 0) {
-    console.log("Trying simple filename format...");
-    const simplePattern = /\n\n([a-zA-Z0-9_\-]+\.(html|css|js|xml|txt))\n```[a-z]*\n([\s\S]*?)```/gi;
-    
-    while ((match = simplePattern.exec(normalizedText)) !== null) {
-      upsertFile(match[1], match[3], "format-simple");
-    }
-  }
-
-  // Pattern 6: Gemini separator format
-  if (filesMap.size === 0) {
-    console.log("Trying Gemini separator format...");
-    const geminiPattern = /(?:^|\n)(?:---\s*\n)?\*\*([a-zA-Z0-9_\-\/\.]+\.(?:html|css|js|xml|txt|json))\*\*\s*\n```[a-z]*\n([\s\S]*?)```/gi;
+    // Pattern: **filename.ext** followed by code block
+    const geminiPattern = /\*\*([a-zA-Z0-9_\-\/\.]+\.(?:html|css|js|xml|txt|json))\*\*\s*\n```[a-z]*\n([\s\S]*?)```/gi;
+    let match;
     
     while ((match = geminiPattern.exec(normalizedText)) !== null) {
-      upsertFile(match[1], match[2], "format-gemini");
+      filesMap.set(match[1], match[2].trim());
+      console.log(`✅ Gemini format: ${match[1]} (${match[2].length} chars)`);
     }
   }
 
-  console.log(`📁 Parser found ${filesMap.size} files total`);
+  // Remove duplicates and return
+  console.log(`📁 Total unique files found: ${filesMap.size}`);
+  
+  if (filesMap.size === 0) {
+    console.log("❌ No files parsed from response");
+    console.log("Response preview for debugging:", normalizedText.substring(0, 1000));
+  }
 
   return Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
 }
