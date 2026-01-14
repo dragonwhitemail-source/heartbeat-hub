@@ -141,25 +141,64 @@ interface GeneratedFile {
 }
 
 function parseFilesFromResponse(responseText: string): GeneratedFile[] {
-  const files: GeneratedFile[] = [];
-  const filePattern = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
-  
-  let match;
-  while ((match = filePattern.exec(responseText)) !== null) {
-    const fileName = match[1].trim();
-    let fileContent = match[2].trim();
+  const normalizedText = responseText.replace(/\r\n/g, "\n");
+  const filesMap = new Map<string, string>();
+
+  console.log("=== PARSING RESPONSE ===");
+
+  // n8n patterns - check ALL patterns simultaneously
+  const filePatterns = [
+    /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g,
+    /\/\* FILE: ([^*]+) \*\/([\s\S]*?)(?=\/\* FILE: |$)/g,
+  ];
+
+  for (const pattern of filePatterns) {
+    pattern.lastIndex = 0;
+    let match;
     
-    if (fileContent && fileContent.length > 10) {
-      files.push({
-        path: fileName,
-        content: fileContent
-      });
-      console.log(`✅ Found: ${fileName} (${fileContent.length} chars)`);
+    while ((match = pattern.exec(normalizedText)) !== null) {
+      const fileName = match[1].trim();
+      let fileContent = match[2].trim()
+        .replace(/^```[a-z]*\n/, '')
+        .replace(/\n```$/, '')
+        .replace(/^`{3,}/, '')
+        .replace(/`{3,}$/, '');
+      
+      const nextFileMarker = fileContent.match(/<!-- FILE: |\/\* FILE: /);
+      if (nextFileMarker && nextFileMarker.index !== undefined) {
+        fileContent = fileContent.substring(0, nextFileMarker.index).trim();
+      }
+      
+      if (fileContent && fileContent.length > 10) {
+        filesMap.set(fileName, fileContent);
+        console.log(`✅ Found: ${fileName} (${fileContent.length} chars)`);
+      }
     }
   }
-  
-  console.log(`📁 Total files found: ${files.length}`);
-  return files;
+
+  // Fallback: split by markers
+  if (filesMap.size === 0) {
+    const fileSections = normalizedText.split(/(?:\/\* FILE: |<!-- FILE: )/);
+    for (let i = 1; i < fileSections.length; i++) {
+      const section = fileSections[i].trim();
+      const firstLineEnd = section.indexOf('\n');
+      if (firstLineEnd > 0) {
+        const fileName = section.substring(0, firstLineEnd).replace(/\*\/$/, '').replace(/-->$/, '').trim();
+        let fileContent = section.substring(firstLineEnd + 1).trim();
+        const nextMarker = fileContent.match(/(?:\/\* FILE: |<!-- FILE: )/);
+        if (nextMarker && nextMarker.index !== undefined) {
+          fileContent = fileContent.substring(0, nextMarker.index).trim();
+        }
+        if (fileName && fileContent && fileContent.length > 10) {
+          filesMap.set(fileName, fileContent);
+          console.log(`✅ Alt: ${fileName} (${fileContent.length} chars)`);
+        }
+      }
+    }
+  }
+
+  console.log(`📁 Total files: ${filesMap.size}`);
+  return Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
 }
 
 function calculateCost(usage: any, model: string): number {
