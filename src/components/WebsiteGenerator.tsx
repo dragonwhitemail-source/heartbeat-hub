@@ -1469,7 +1469,10 @@ export function WebsiteGenerator() {
         return result;
       };
 
-      const generationPromises: Promise<any>[] = [];
+      // Execute generations sequentially with delay to avoid overwhelming the backend
+      const results: any[] = [];
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      
       for (const currentSiteName of siteNamesSnapshot) {
         for (const lang of langsSnapshot) {
           for (let i = 0; i < sitesPerLanguage; i++) {
@@ -1477,9 +1480,10 @@ export function WebsiteGenerator() {
               for (const model of aiModelsSnapshot) {
                 for (const wType of websiteTypesSnapshot) {
                   for (const iSource of imageSourcesSnapshot) {
-                    generationPromises.push(
-                      createTrackedPromise(currentSiteName, lang, style, model, wType, iSource)
-                    );
+                    const result = await createTrackedPromise(currentSiteName, lang, style, model, wType, iSource);
+                    results.push(result);
+                    // Add 1 second delay between generations to prevent rate limiting
+                    await delay(1000);
                   }
                 }
               }
@@ -1487,9 +1491,6 @@ export function WebsiteGenerator() {
           }
         }
       }
-
-      // Execute all in parallel
-      const results = await Promise.all(generationPromises);
 
       const successCount = results.filter((r) => r.success).length;
       const failCount = results.filter((r) => !r.success).length;
@@ -2936,8 +2937,10 @@ export function WebsiteGenerator() {
                     ? customGeo
                     : (selectedGeo && selectedGeo !== "none" ? selectedGeo : undefined);
                   try {
-                    // Generate for each site name
-                    for (const name of siteNames) {
+                    // Generate for each site name with delay
+                    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+                    for (let i = 0; i < siteNames.length; i++) {
+                      const name = siteNames[i];
                       const result = await startGeneration(
                         promptSnapshot,
                         externalLanguage,
@@ -2953,6 +2956,10 @@ export function WebsiteGenerator() {
                       );
                       if (!result.success) {
                         throw new Error(result.error || t("genForm.couldNotStart"));
+                      }
+                      // Add 1 second delay between generations (except after the last one)
+                      if (i < siteNames.length - 1) {
+                        await delay(1000);
                       }
                     }
                     toast({
