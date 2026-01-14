@@ -2932,19 +2932,25 @@ export function WebsiteGenerator() {
                   setIsSubmitting(false);
                 }}
                 disabled={siteNames.length === 0 || !prompt.trim() || !seniorMode}
-                className="w-full h-9 text-sm"
+                className={`w-full h-9 text-sm transition-all duration-300 ease-out ${
+                  isSubmitting 
+                    ? 'bg-primary/90 shadow-lg shadow-primary/25' 
+                    : 'hover:shadow-md hover:scale-[1.01] active:scale-[0.99]'
+                }`}
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    {t("genForm.sending")}
-                  </>
-                ) : (
-                  <>
-                    <Crown className="mr-1 h-3 w-3" />
-                    {t("genForm.launch")} {seniorMode || "Senior"}
-                  </>
-                )}
+                <span className={`inline-flex items-center transition-opacity duration-200 ${isSubmitting ? 'animate-fade-in' : ''}`}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      <span className="animate-pulse-subtle">{t("genForm.sending")}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Crown className="mr-1 h-3 w-3" />
+                      {t("genForm.launch")} {seniorMode || "Senior"}
+                    </>
+                  )}
+                </span>
               </Button>
             )}
 
@@ -2957,30 +2963,41 @@ export function WebsiteGenerator() {
                 <Button
                   onClick={handleGenerateClick}
                   disabled={siteNames.length === 0 || !prompt.trim() || getAllSelectedLanguages().length === 0 || selectedAiModels.length === 0 || selectedWebsiteTypes.length === 0 || selectedImageSources.length === 0 || (isAdmin ? exceedsCreditLimit : insufficientBalance) || (isAdmin && !selectedAdminTeamId)}
-                  className="h-9 text-sm"
+                  className={`h-9 text-sm transition-all duration-300 ease-out ${
+                    isSubmitting 
+                      ? 'min-w-[140px] bg-primary/90 shadow-lg shadow-primary/25' 
+                      : 'min-w-[100px] hover:shadow-md hover:scale-[1.02] active:scale-[0.98]'
+                  }`}
                 >
-                  {isSubmitting ? (
-                    isImproving ? (
-                      <>
-                        <Sparkles className="mr-1 h-3 w-3 animate-pulse" />
-                        {t("genForm.improvingPrompt")}
-                      </>
+                  <span className={`inline-flex items-center transition-opacity duration-200 ${isSubmitting ? 'animate-fade-in' : ''}`}>
+                    {isSubmitting ? (
+                      isImproving ? (
+                        <>
+                          <Sparkles className="mr-1.5 h-3.5 w-3.5 animate-pulse" />
+                          <span className="animate-pulse">{t("genForm.improvingPrompt")}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          <span>{t("genForm.generating")}</span>
+                          {generationProgress.total > 0 && (
+                            <span className="ml-1 tabular-nums opacity-80">
+                              {generationProgress.completed}/{generationProgress.total}
+                            </span>
+                          )}
+                        </>
+                      )
                     ) : (
                       <>
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        {t("genForm.generating")} {generationProgress.total > 0 && `${generationProgress.completed}/${generationProgress.total}`}
+                        {t("genForm.generate")} {totalGenerations > 1 ? `(${totalGenerations})` : ""}
+                        {teamPricing && (
+                          <span className="ml-1 text-xs opacity-80">
+                            ${calculateTotalCost().toFixed(2)}
+                          </span>
+                        )}
                       </>
-                    )
-                  ) : (
-                    <>
-                      {t("genForm.generate")} {totalGenerations > 1 ? `(${totalGenerations})` : ""}
-                      {teamPricing && (
-                        <span className="ml-1 text-xs opacity-80">
-                          ${calculateTotalCost().toFixed(2)}
-                        </span>
-                      )}
-                    </>
-                  )}
+                    )}
+                  </span>
                 </Button>
 
                 {/* Preset Management - same row */}
@@ -3140,15 +3157,32 @@ export function WebsiteGenerator() {
 
             {/* Progress bar for bulk generation */}
             {isSubmitting && generationProgress.total > 1 && (
-              <div className="space-y-2">
+              <div className="space-y-2 animate-fade-in">
                 <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>{t("genForm.generateProgress")}</span>
-                  <span>{generationProgress.completed} / {generationProgress.total}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                    </span>
+                    {t("genForm.generateProgress")}
+                  </span>
+                  <span className="tabular-nums font-medium">
+                    {generationProgress.completed} / {generationProgress.total}
+                  </span>
                 </div>
-                <Progress 
-                  value={(generationProgress.completed / generationProgress.total) * 100} 
-                  className="h-2"
-                />
+                <div className="relative overflow-hidden rounded-full bg-secondary h-2.5">
+                  <div 
+                    className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500 ease-out rounded-full"
+                    style={{ width: `${(generationProgress.completed / generationProgress.total) * 100}%` }}
+                  />
+                  <div 
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]"
+                    style={{ 
+                      width: `${(generationProgress.completed / generationProgress.total) * 100}%`,
+                      backgroundSize: '200% 100%'
+                    }}
+                  />
+                </div>
               </div>
             )}
               </>
@@ -3157,7 +3191,7 @@ export function WebsiteGenerator() {
         </div>
 
         {/* History with realtime updates and preview - today only */}
-        <GenerationHistory 
+        <GenerationHistory
           defaultDateFilter="today"
           onUsePrompt={(name, desc) => {
             setSiteNames(name ? [name] : []);
