@@ -200,11 +200,10 @@ async function runCodexGeneration(
   supabaseKey: string
 ) {
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const openaiApiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   const lovableApiKey = Deno.env.get("LOVABLE_API_KEY") ?? "";
 
-  if (!openaiApiKey && !lovableApiKey) {
-    throw new Error("No AI API key configured");
+  if (!lovableApiKey) {
+    throw new Error("LOVABLE_API_KEY is not configured");
   }
   
   console.log(`🚀 Starting Codex generation for: ${siteName}`);
@@ -216,188 +215,86 @@ async function runCodexGeneration(
     .eq("id", historyId);
   
   try {
-    // Prefer OpenAI if available; fallback to Lovable AI gateway when OpenAI fails (quota, errors, timeouts)
-    const OPENAI_ATTEMPT_TIMEOUT_MS = 8 * 60 * 1000;
     const GATEWAY_TIMEOUT_MS = 8 * 60 * 1000;
 
-    const openAiModels = openaiApiKey ? ["gpt-4o", "gpt-5-2025-08-07"] : [];
-
     let responseText = "";
-    let cost = 1; // keep existing baseline cost unless we can calculate precisely
+    let cost = 1;
     let usedModel = "";
     let lastError = "";
-    let openAiQuotaExceeded = false;
 
-    for (const model of openAiModels) {
-      console.log(`📤 Calling OpenAI API with ${model}...`);
+    // Use Lovable AI gateway as primary
+    const gatewayModel = "google/gemini-2.5-flash";
+    console.log(`📤 Calling Lovable AI gateway with ${gatewayModel}...`);
 
-      // Create AbortController for timeout (8 minutes per attempt)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.log(
-          `⏰ Fetch timeout triggered after ${Math.round(OPENAI_ATTEMPT_TIMEOUT_MS / 60000)} minutes for ${model}`
-        );
-        controller.abort();
-      }, OPENAI_ATTEMPT_TIMEOUT_MS);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log(
+        `⏰ Fetch timeout triggered after ${Math.round(GATEWAY_TIMEOUT_MS / 60000)} minutes for Lovable gateway ${gatewayModel}`
+      );
+      controller.abort();
+    }, GATEWAY_TIMEOUT_MS);
 
-      let response: Response;
-      try {
-        const requestBody: any = {
-          model,
+    try {
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: gatewayModel,
           messages: [
             { role: "system", content: GENERATION_PROMPT },
             { role: "user", content: prompt },
           ],
-        };
+          stream: false,
+        }),
+        signal: controller.signal,
+      });
 
-        // Different token params for different models
-        if (model.includes("gpt-5")) {
-          requestBody.max_completion_tokens = 50000;
-        } else {
-          requestBody.max_tokens = 16000;
-          requestBody.temperature = 0.7;
-        }
+      console.log(`📥 Lovable gateway responded with status:`, resp.status);
 
-        response = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openaiApiKey}`,
-          },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
-        });
-      } catch (fetchErr) {
-        const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-        const isAbort =
-          fetchErr instanceof Error &&
-          (fetchErr.name === "AbortError" || errMsg.toLowerCase().includes("aborted"));
-
-        lastError = isAbort
-          ? `Timeout after ${Math.round(OPENAI_ATTEMPT_TIMEOUT_MS / 60000)} minutes for ${model}`
-          : `OpenAI fetch failed for ${model}: ${errMsg}`;
-
-        console.error(`❌ ${lastError}`);
-        continue;
-      } finally {
-        clearTimeout(timeoutId);
-      }
-
-      console.log(`📥 ${model} responded with status:`, response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        lastError = `OpenAI API error for ${model}: ${response.status} ${errorText}`;
+      if (!resp.ok) {
+        const t = await resp.text();
+        lastError = `Lovable gateway error: ${resp.status} ${t}`;
         console.error(lastError);
-
-        if (response.status === 429) {
-          openAiQuotaExceeded = true;
-          // Stop trying OpenAI models; fallback to Lovable gateway if available
-          break;
+        
+        if (resp.status === 429) {
+          throw new Error("Rate limits exceeded, please try again later");
         }
+        if (resp.status === 402) {
+          throw new Error("Payment required, please add funds to Lovable AI");
+        }
+        throw new Error(lastError);
+      } else {
+        const data = await resp.json();
+        responseText = data.choices?.[0]?.message?.content || "";
 
-        continue;
-      }
-
-      const data = await response.json();
-      console.log(`📥 ${model} response received, usage:`, JSON.stringify(data.usage));
-      console.log(`📥 finish_reason:`, data.choices?.[0]?.finish_reason);
-
-      // Check finish_reason - if "length", model ran out of tokens
-      const finishReason = data.choices?.[0]?.finish_reason;
-      if (finishReason === "length") {
-        lastError = `OpenAI ${model} hit token limit (finish_reason: length)`;
-        console.warn(`⚠️ ${lastError}`);
-        continue;
-      }
-
-      // Extract response text
-      responseText = data.choices?.[0]?.message?.content || "";
-
-      if (!responseText || responseText.length < 100) {
-        lastError = `OpenAI ${model} returned empty/short content`;
-        console.error(`❌ ${lastError}`);
-        continue;
-      }
-
-      // Calculate cost for OpenAI models (token-based)
-      cost = calculateCost(data.usage, model);
-
-      usedModel = model;
-      console.log(`✅ Got valid response from ${model}, length: ${responseText.length} chars, cost: $${cost}`);
-      break;
-    }
-
-    // Fallback: Lovable AI gateway (used whenever OpenAI fails for any reason)
-    if (!responseText && lovableApiKey) {
-      const gatewayModel = "google/gemini-2.5-flash";
-      console.log(`📤 Calling Lovable AI gateway with ${gatewayModel}...`);
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.log(
-          `⏰ Fetch timeout triggered after ${Math.round(GATEWAY_TIMEOUT_MS / 60000)} minutes for Lovable gateway ${gatewayModel}`
-        );
-        controller.abort();
-      }, GATEWAY_TIMEOUT_MS);
-
-      try {
-        const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: gatewayModel,
-            messages: [
-              { role: "system", content: GENERATION_PROMPT },
-              { role: "user", content: prompt },
-            ],
-            stream: false,
-          }),
-          signal: controller.signal,
-        });
-
-        console.log(`📥 Lovable gateway responded with status:`, resp.status);
-
-        if (!resp.ok) {
-          const t = await resp.text();
-          lastError = `Lovable gateway error: ${resp.status} ${t}`;
-          console.error(lastError);
+        if (!responseText || responseText.length < 100) {
+          lastError = "Lovable gateway returned empty/short content";
+          console.error(`❌ ${lastError}`);
+          throw new Error(lastError);
         } else {
-          const data = await resp.json();
-          responseText = data.choices?.[0]?.message?.content || "";
-
-          if (!responseText || responseText.length < 100) {
-            lastError = "Lovable gateway returned empty/short content";
-            console.error(`❌ ${lastError}`);
-            responseText = "";
-          } else {
-            usedModel = gatewayModel;
-            console.log(
-              `✅ Got valid response from Lovable gateway, length: ${responseText.length} chars`
-            );
-          }
+          usedModel = gatewayModel;
+          console.log(
+            `✅ Got valid response from Lovable gateway, length: ${responseText.length} chars`
+          );
         }
-      } catch (fetchErr) {
-        const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-        const isAbort =
-          fetchErr instanceof Error &&
-          (fetchErr.name === "AbortError" || errMsg.toLowerCase().includes("aborted"));
-
-        lastError = isAbort
-          ? `Timeout after ${Math.round(GATEWAY_TIMEOUT_MS / 60000)} minutes for Lovable gateway ${gatewayModel}`
-          : `Lovable gateway fetch failed: ${errMsg}`;
-
-        console.error(`❌ ${lastError}`);
-      } finally {
-        clearTimeout(timeoutId);
       }
-    }
+    } catch (fetchErr) {
+      const errMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      const isAbort =
+        fetchErr instanceof Error &&
+        (fetchErr.name === "AbortError" || errMsg.toLowerCase().includes("aborted"));
 
-    if (!responseText) {
-      throw new Error(lastError || "All models failed to generate content");
+      lastError = isAbort
+        ? `Timeout after ${Math.round(GATEWAY_TIMEOUT_MS / 60000)} minutes for Lovable gateway ${gatewayModel}`
+        : errMsg;
+
+      console.error(`❌ ${lastError}`);
+      throw new Error(lastError);
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     console.log(`📝 Response length: ${responseText.length} chars from ${usedModel}`);
