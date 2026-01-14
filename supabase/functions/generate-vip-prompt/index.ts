@@ -176,9 +176,25 @@ function getTypeDescription(topic: string): string {
   return "Information & Resource Hub";
 }
 
+// Language name to ISO code mapping
+const languageToCode: Record<string, string> = {
+  "english": "en", "ukrainian": "uk", "russian": "ru", "german": "de", "french": "fr",
+  "spanish": "es", "italian": "it", "portuguese": "pt", "polish": "pl", "dutch": "nl",
+  "czech": "cs", "slovak": "sk", "hungarian": "hu", "romanian": "ro", "bulgarian": "bg",
+  "croatian": "hr", "slovenian": "sl", "greek": "el", "turkish": "tr", "japanese": "ja",
+  "vietnamese": "vi", "thai": "th", "indonesian": "id", "hindi": "hi", "arabic": "ar",
+  "finnish": "fi", "swedish": "sv", "danish": "da", "estonian": "et", "latvian": "lv", "lithuanian": "lt",
+  // Also support native language names
+  "українська": "uk", "русский": "ru", "deutsch": "de", "français": "fr",
+  "español": "es", "italiano": "it", "português": "pt", "polski": "pl", "nederlands": "nl",
+  "čeština": "cs", "slovenčina": "sk", "magyar": "hu", "română": "ro", "български": "bg",
+  "hrvatski": "hr", "slovenščina": "sl", "ελληνικά": "el", "türkçe": "tr"
+};
+
 // Get hreflang code from language and geo
 function getHreflang(language: string, geo: string): string {
-  const langCode = language.toLowerCase().slice(0, 2);
+  const langLower = language.toLowerCase();
+  const langCode = languageToCode[langLower] || langLower.slice(0, 2);
   const geoCode = geo.toLowerCase().slice(0, 2);
   return `${langCode}-${geoCode.toUpperCase()}`;
 }

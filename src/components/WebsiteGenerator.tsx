@@ -2471,15 +2471,25 @@ export function WebsiteGenerator() {
                           const siteName = currentSiteName;
                           const geoValue = isOtherGeoSelected && customGeo ? customGeo : selectedGeo;
                           const langValue = selectedLanguages[0] || customLanguage || "en";
-                          const langLabel = languages.find(l => l.value === langValue)?.label || langValue;
                           const geoLabel = geoOptions.find(g => g.value === geoValue)?.label || geoValue || "International";
+                          
+                          // Language code to English name mapping for VIP prompt
+                          const languageNamesEnglish: Record<string, string> = {
+                            en: "English", uk: "Ukrainian", ru: "Russian", de: "German", fr: "French",
+                            es: "Spanish", it: "Italian", pt: "Portuguese", pl: "Polish", nl: "Dutch",
+                            cs: "Czech", sk: "Slovak", hu: "Hungarian", ro: "Romanian", bg: "Bulgarian",
+                            hr: "Croatian", sl: "Slovenian", el: "Greek", tr: "Turkish", ja: "Japanese",
+                            vi: "Vietnamese", th: "Thai", id: "Indonesian", hi: "Hindi", ar: "Arabic",
+                            fi: "Finnish", sv: "Swedish", da: "Danish", et: "Estonian", lv: "Latvian", lt: "Lithuanian"
+                          };
+                          const langNameEnglish = languageNamesEnglish[langValue] || langValue;
                           
                           const { data, error } = await supabase.functions.invoke('generate-vip-prompt', {
                             body: {
                               domain: effectiveDomain,
                               siteName,
                               geo: geoLabel,
-                              language: langLabel,
+                              language: langNameEnglish,
                               address: vipAddress,
                               phone: vipPhone,
                               topic: vipTopic || undefined,
