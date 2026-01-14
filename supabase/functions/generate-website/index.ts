@@ -2545,6 +2545,9 @@ const parseFilesFromModelText = (rawText: string) => {
   const normalizedText = rawText.replace(/\r\n/g, "\n");
   const filesMap = new Map<string, string>();
 
+  // Debug: log first 500 chars to understand response format
+  console.log("🔍 Raw response preview (first 500 chars):", normalizedText.substring(0, 500));
+
   const upsertFile = (path: string, content: string, source: string) => {
     const cleanPath = path.trim();
     const cleanContent = cleanFileContent(content);
@@ -2553,12 +2556,38 @@ const parseFilesFromModelText = (rawText: string) => {
     console.log(`✅ Found (${source}): ${cleanPath} (${cleanContent.length} chars)`);
   };
 
+  // Format 1: <!-- FILE: filename.ext -->
   const filePattern1 = /<!-- FILE: ([^>]+) -->([\s\S]*?)(?=<!-- FILE: |$)/g;
   let match;
   while ((match = filePattern1.exec(normalizedText)) !== null) {
     upsertFile(match[1], match[2], "format1");
   }
 
+  // Format 2: ```filename.ext or ```html filename=...
+  if (filesMap.size === 0) {
+    console.log("Trying code block format...");
+    
+    // Pattern: ```html\n<!-- filename.ext --> or ```css\n/* filename.ext */
+    const codeBlockPattern = /```([a-z]+)?\n(?:<!--\s*([a-zA-Z0-9_\-\/\.]+\.[a-z]+)\s*-->|\/\*\s*([a-zA-Z0-9_\-\/\.]+\.[a-z]+)\s*\*\/|\/\/\s*([a-zA-Z0-9_\-\/\.]+\.[a-z]+))?\s*\n?([\s\S]*?)```/gi;
+    
+    while ((match = codeBlockPattern.exec(normalizedText)) !== null) {
+      const lang = match[1] || "";
+      const fileName = match[2] || match[3] || match[4];
+      const content = match[5] || "";
+      
+      if (fileName) {
+        upsertFile(fileName, content, "codeblock-named");
+      } else if (lang && content.length > 50) {
+        // Infer filename from language
+        const inferredName = lang === "html" ? "index.html" : lang === "css" ? "styles.css" : lang === "js" || lang === "javascript" ? "script.js" : null;
+        if (inferredName && !filesMap.has(inferredName)) {
+          upsertFile(inferredName, content, "codeblock-inferred");
+        }
+      }
+    }
+  }
+
+  // Format 3: OpenAI markdown headings format
   if (filesMap.size === 0) {
     console.log("Trying OpenAI markdown headings format...");
 
@@ -2580,10 +2609,36 @@ const parseFilesFromModelText = (rawText: string) => {
       const start = headers[i].contentStart;
       const end = headers[i + 1]?.start ?? normalizedText.length;
       const chunk = normalizedText.slice(start, end);
-      upsertFile(headers[i].path, chunk, "format2");
+      upsertFile(headers[i].path, chunk, "format3");
     }
   }
 
+  // Format 4: Simple filename on its own line followed by code
+  if (filesMap.size === 0) {
+    console.log("Trying simple filename format...");
+    
+    // Pattern: \n\nfilename.ext\n```
+    const simplePattern = /\n\n([a-zA-Z0-9_\-]+\.(html|css|js|xml|txt))\n```[a-z]*\n([\s\S]*?)```/gi;
+    
+    while ((match = simplePattern.exec(normalizedText)) !== null) {
+      upsertFile(match[1], match[3], "format4");
+    }
+  }
+
+  // Format 5: Gemini sometimes uses "---" separators
+  if (filesMap.size === 0) {
+    console.log("Trying Gemini separator format...");
+    
+    // Look for patterns like: ---\n**filename.ext**\n```
+    const geminiPattern = /(?:^|\n)(?:---\s*\n)?\*\*([a-zA-Z0-9_\-\/\.]+\.(?:html|css|js|xml|txt|json))\*\*\s*\n```[a-z]*\n([\s\S]*?)```/gi;
+    
+    while ((match = geminiPattern.exec(normalizedText)) !== null) {
+      upsertFile(match[1], match[2], "format5-gemini");
+    }
+  }
+
+  console.log(`📁 Parser found ${filesMap.size} files total`);
+  
   return Array.from(filesMap.entries()).map(([path, content]) => ({ path, content }));
 };
 
