@@ -2503,6 +2503,26 @@ export function WebsiteGenerator() {
                           
                           if (data?.vipPrompt) {
                             setVipPromptValue(data.vipPrompt);
+                            
+                            // Auto-detect language from VIP prompt and update UI selection
+                            const vipLanguageMatch = data.vipPrompt.match(/^Language:\s*(\w+)/im);
+                            if (vipLanguageMatch) {
+                              const langNameFromVip = vipLanguageMatch[1].toLowerCase();
+                              const languageNameToCode: Record<string, string> = {
+                                "english": "en", "ukrainian": "uk", "russian": "ru", "german": "de", "french": "fr",
+                                "spanish": "es", "italian": "it", "portuguese": "pt", "polish": "pl", "dutch": "nl",
+                                "czech": "cs", "slovak": "sk", "hungarian": "hu", "romanian": "ro", "bulgarian": "bg",
+                                "croatian": "hr", "slovenian": "sl", "greek": "el", "turkish": "tr", "japanese": "ja",
+                                "vietnamese": "vi", "thai": "th", "indonesian": "id", "hindi": "hi", "arabic": "ar",
+                                "finnish": "fi", "swedish": "sv", "danish": "da", "estonian": "et", "latvian": "lv", "lithuanian": "lt"
+                              };
+                              const detectedLangCode = languageNameToCode[langNameFromVip];
+                              if (detectedLangCode && !selectedLanguages.includes(detectedLangCode)) {
+                                setSelectedLanguages([detectedLangCode]);
+                                console.log(`🌐 Auto-updated UI language to: ${detectedLangCode} (from VIP prompt: ${vipLanguageMatch[1]})`);
+                              }
+                            }
+                            
                             toast({
                               title: t("genForm.vipPromptGeneratedTitle"),
                               description: t("genForm.vipPromptGeneratedDesc"),
