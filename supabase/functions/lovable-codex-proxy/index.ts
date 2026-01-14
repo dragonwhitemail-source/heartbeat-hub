@@ -459,11 +459,7 @@ INCLUDE THESE FEATURES:
 - Footer with sitemap
 
 **IMAGE HANDLING - CRITICAL RULES:**
-- **DO NOT use specific Pexels URLs from examples**
-- **USE ONLY generic placeholder services:**
-  - https://picsum.photos/1200/800?random=1 (change number for each image)
-  - https://placehold.co/1200x800/EFEFEF/AAA?text=Image+Description
-  - https://via.placeholder.com/1200x800/EFEFEF/AAA?text=Business+Image
+{{IMAGE_STRATEGY}}
 - **Image dimensions:** 1200x800 for hero, 800x600 for content
 - **Alt text MUST describe business context** (not generic)
 - **Each image gets unique random parameter**
@@ -471,8 +467,7 @@ INCLUDE THESE FEATURES:
 CODING STANDARDS:
 - Clean, maintainable code
 - Proper file organization
-- **Generic placeholder images only**
-- No specific Pexels photo URLs
+- Use provided image URLs for best quality
 
 FORMAT:
 <!-- FILE: filename -->
@@ -483,6 +478,99 @@ Return ALL files with FULL, WORKING code.`;
 interface GeneratedFile {
   path: string;
   content: string;
+}
+
+// ============================================================================
+// PEXELS IMAGE FETCHING
+// ============================================================================
+const IMAGE_STRATEGY_BASIC = `
+- **USE ONLY generic placeholder services:**
+  - https://picsum.photos/1200/800?random=1 (change number for each image)
+  - https://placehold.co/1200x800/EFEFEF/AAA?text=Image+Description
+`;
+
+async function fetchPexelsPhotos(query: string, count: number = 15): Promise<string[]> {
+  const pexelsKey = Deno.env.get("PEXELS_API_KEY");
+  if (!pexelsKey) {
+    console.log("PEXELS_API_KEY not configured, falling back to picsum");
+    return [];
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
+      { headers: { Authorization: pexelsKey } }
+    );
+
+    if (!response.ok) {
+      console.log(`Pexels API error: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const urls = (data.photos || []).map((p: any) => p.src?.large2x || p.src?.large || p.src?.original);
+    console.log(`📸 Fetched ${urls.length} photos from Pexels for "${query}"`);
+    return urls.filter(Boolean);
+  } catch (err) {
+    console.log("Pexels fetch error:", err);
+    return [];
+  }
+}
+
+function buildPexelsImageStrategy(pexelsUrls: string[]): string {
+  if (pexelsUrls.length === 0) {
+    return IMAGE_STRATEGY_BASIC;
+  }
+
+  return `
+**HIGH-QUALITY STOCK PHOTOS - USE THESE EXACT URLs:**
+${pexelsUrls.map((url, i) => `${i + 1}. ${url}`).join("\n")}
+
+**USAGE RULES:**
+- Use these URLs directly in <img src="..."> tags
+- Distribute across all pages (hero, about, services, etc.)
+- Each image can be used once or twice maximum
+- Add descriptive alt text for each image
+- All images are already optimized and high-quality
+`;
+}
+
+async function extractKeywords(prompt: string, apiKey: string): Promise<string> {
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: `Extract 2-4 keywords for stock photo search from this website description. Return ONLY keywords separated by spaces, nothing else:\n\n"${prompt.substring(0, 500)}"`,
+          },
+        ],
+        max_tokens: 50,
+      }),
+    });
+
+    if (!response.ok) return extractKeywordsFallback(prompt);
+    
+    const data = await response.json();
+    const keywords = data.choices?.[0]?.message?.content?.trim() || "";
+    console.log(`🔍 AI extracted keywords: "${keywords}"`);
+    return keywords || extractKeywordsFallback(prompt);
+  } catch {
+    return extractKeywordsFallback(prompt);
+  }
+}
+
+function extractKeywordsFallback(prompt: string): string {
+  const common = ["business", "professional", "corporate", "modern", "office"];
+  const words = prompt.toLowerCase().split(/\s+/).slice(0, 10);
+  const keywords = words.filter(w => w.length > 4 && !["website", "create", "build", "make", "need"].includes(w));
+  return keywords.slice(0, 3).join(" ") || common[Math.floor(Math.random() * common.length)];
 }
 
 // ============================================================================
@@ -687,10 +775,18 @@ async function runLovableCodexGeneration(
       clearTimeout(refineTimeoutId);
     }
     
+    // Step 1.5: Fetch Pexels photos
+    console.log("📸 Step 1.5: Fetching Pexels photos...");
+    const keywords = await extractKeywords(prompt, lovableApiKey);
+    console.log(`📸 Fetching Pexels photos for keywords: "${keywords}"`);
+    const pexelsUrls = await fetchPexelsPhotos(keywords, 15);
+    const imageStrategy = buildPexelsImageStrategy(pexelsUrls);
+    
     // Step 2: Generate the website
     console.log("🏗️ Step 2: Generating website...");
     
-    const fullPrompt = refinedPrompt + "\n\n" + GENERATION_PROMPT;
+    const generationPromptWithImages = GENERATION_PROMPT.replace("{{IMAGE_STRATEGY}}", imageStrategy);
+    const fullPrompt = refinedPrompt + "\n\n" + generationPromptWithImages;
     
     const genController = new AbortController();
     const genTimeoutId = setTimeout(() => {
