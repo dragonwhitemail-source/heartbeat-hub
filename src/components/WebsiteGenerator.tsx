@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag, Shuffle } from "lucide-react";
+import { Loader2, FileCode2, Sparkles, Zap, Crown, Globe, Layers, Languages, Hash, Palette, ChevronDown, AlertTriangle, Users, Wallet, RefreshCcw, Info, Image, Save, FolderOpen, Trash2, ChevronUp, Filter, Newspaper, MapPin, X, Plus, Star, Phone, Building2, Tag, Shuffle, Square } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -518,6 +518,10 @@ export function WebsiteGenerator() {
   const [generationProgress, setGenerationProgress] = useState({ completed: 0, total: 0 });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [teamPricing, setTeamPricing] = useState<TeamPricing | null>(null);
+  
+  // Stop generation queue ref and state
+  const stopGenerationRef = useRef(false);
+  const [isStopping, setIsStopping] = useState(false);
   
   // Admin team selection - persist in localStorage
   const [adminTeams, setAdminTeams] = useState<AdminTeam[]>([]);
@@ -1473,6 +1477,10 @@ export function WebsiteGenerator() {
       const results: any[] = [];
       const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
       
+      // Reset stop flag before starting
+      stopGenerationRef.current = false;
+      
+      outerLoop:
       for (const currentSiteName of siteNamesSnapshot) {
         for (const lang of langsSnapshot) {
           for (let i = 0; i < sitesPerLanguage; i++) {
@@ -1480,6 +1488,14 @@ export function WebsiteGenerator() {
               for (const model of aiModelsSnapshot) {
                 for (const wType of websiteTypesSnapshot) {
                   for (const iSource of imageSourcesSnapshot) {
+                    // Check if generation was stopped
+                    if (stopGenerationRef.current) {
+                      toast({
+                        title: t("genForm.generationStopped"),
+                        description: t("genForm.generationStoppedDesc").replace("{completed}", String(results.length)),
+                      });
+                      break outerLoop;
+                    }
                     const result = await createTrackedPromise(currentSiteName, lang, style, model, wType, iSource);
                     results.push(result);
                     // Add 1 second delay between generations to prevent rate limiting
@@ -2939,7 +2955,21 @@ export function WebsiteGenerator() {
                   try {
                     // Generate for each site name with delay
                     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+                    
+                    // Reset stop flag before starting
+                    stopGenerationRef.current = false;
+                    
+                    let completedCount = 0;
                     for (let i = 0; i < siteNames.length; i++) {
+                      // Check if generation was stopped
+                      if (stopGenerationRef.current) {
+                        toast({
+                          title: t("genForm.generationStopped"),
+                          description: t("genForm.generationStoppedDesc").replace("{completed}", String(completedCount)),
+                        });
+                        break;
+                      }
+                      
                       const name = siteNames[i];
                       const result = await startGeneration(
                         promptSnapshot,
@@ -2957,6 +2987,7 @@ export function WebsiteGenerator() {
                       if (!result.success) {
                         throw new Error(result.error || t("genForm.couldNotStart"));
                       }
+                      completedCount++;
                       // Add 1 second delay between generations (except after the last one)
                       if (i < siteNames.length - 1) {
                         await delay(1000);
@@ -3044,6 +3075,51 @@ export function WebsiteGenerator() {
                     )}
                   </span>
                 </Button>
+
+                {/* Stop Generation Button - only show when generating */}
+                {isSubmitting && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-9 px-3 text-xs"
+                    onClick={async () => {
+                      stopGenerationRef.current = true;
+                      setIsStopping(true);
+                      
+                      // Also stop all pending generations in database for this user
+                      if (user) {
+                        try {
+                          const { error } = await supabase
+                            .from("generation_history")
+                            .update({ status: "cancelled", error_message: t("genForm.stoppedByUser") })
+                            .eq("user_id", user.id)
+                            .in("status", ["pending", "generating"]);
+                          
+                          if (!error) {
+                            toast({
+                              title: t("genForm.stoppingGenerations"),
+                              description: t("genForm.stoppingGenerationsDesc"),
+                            });
+                          }
+                        } catch (e) {
+                          console.error("Error stopping generations:", e);
+                        }
+                      }
+                      
+                      setIsStopping(false);
+                    }}
+                    disabled={isStopping}
+                  >
+                    {isStopping ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        <Square className="h-3 w-3 mr-1" />
+                        {t("genForm.stop")}
+                      </>
+                    )}
+                  </Button>
+                )}
 
                 {/* Preset Management - same row */}
                 <Input

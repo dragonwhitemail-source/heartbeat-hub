@@ -1414,5 +1414,11 @@ export const ru = {
     orderConfirm: "Да, запустить за",
     selectLanguageRequired: "Язык",
     selectGeoRequired: "Гео/Регион",
+    stop: "Стоп",
+    generationStopped: "Генерация остановлена",
+    generationStoppedDesc: "Завершено {completed} генераций до остановки",
+    stoppedByUser: "Остановлено пользователем",
+    stoppingGenerations: "Остановка генераций",
+    stoppingGenerationsDesc: "Ожидающие или выполняющиеся генерации будут отменены",
   },
 } as const;
