@@ -1408,6 +1408,7 @@ export function WebsiteGenerator() {
     const websiteTypesSnapshot = selectedWebsiteTypes.length > 0 ? selectedWebsiteTypes : (["html"] as WebsiteType[]);
     const imageSourcesSnapshot = selectedImageSources.length > 0 ? selectedImageSources : (["basic"] as ImageSource[]);
     const vipPromptSnapshot = vipPromptValue;
+    const exactPhoneSnapshot = exactPhone;
 
     // Clear inputs immediately so user can start preparing the next website while generation runs
     setSiteNames([]);
@@ -1467,7 +1468,7 @@ export function WebsiteGenerator() {
           improvedPromptSnapshot || undefined,
           geoToUse,
           vipPromptSnapshot || undefined,
-          exactPhone || undefined
+          exactPhoneSnapshot || undefined
         );
         setGenerationProgress((prev) => ({ ...prev, completed: prev.completed + 1 }));
         return result;
