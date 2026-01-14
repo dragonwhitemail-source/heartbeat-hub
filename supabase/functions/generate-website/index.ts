@@ -2658,29 +2658,21 @@ async function runGeneration({
   siteName?: string;
 }): Promise<GenerationResult> {
   const isJunior = aiModel === "junior";
-  console.log(`Using ${isJunior ? "Junior AI (OpenAI GPT-4o)" : "Senior AI (Lovable AI)"} for HTML generation`);
+  console.log(`Using ${isJunior ? "Junior AI (Lovable Gemini Flash)" : "Senior AI (Lovable Gemini Pro)"} for HTML generation`);
 
-  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-  if (isJunior && !OPENAI_API_KEY) {
-    console.error("OPENAI_API_KEY not configured");
-    return { success: false, error: "OpenAI API key not configured for Junior AI" };
-  }
-
-  if (!isJunior && !LOVABLE_API_KEY) {
+  if (!LOVABLE_API_KEY) {
     console.error("LOVABLE_API_KEY not configured");
-    return { success: false, error: "Lovable AI not configured for Senior AI" };
+    return { success: false, error: "Lovable AI API key not configured" };
   }
 
   console.log("Generating HTML website for prompt:", prompt.substring(0, 100));
 
-  const apiUrl = isJunior
-    ? "https://api.openai.com/v1/chat/completions"
-    : "https://ai.gateway.lovable.dev/v1/chat/completions";
-  const apiKey = isJunior ? OPENAI_API_KEY : LOVABLE_API_KEY;
-  const refineModel = isJunior ? "gpt-4o-mini" : "google/gemini-2.5-flash";
-  const generateModel = isJunior ? "gpt-4o" : "google/gemini-2.5-pro";
+  const apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+  const apiKey = LOVABLE_API_KEY;
+  const refineModel = "google/gemini-2.5-flash";
+  const generateModel = isJunior ? "google/gemini-2.5-flash" : "google/gemini-2.5-pro";
 
   // Step 1: refined prompt (with retry logic, shorter timeout for refine step)
   let agentResponse: Response;
