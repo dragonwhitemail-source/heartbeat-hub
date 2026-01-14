@@ -374,6 +374,7 @@ export type Database = {
           created_by: string
           id: string
           is_active: boolean
+          is_admin_invite: boolean | null
           team_id: string | null
           used_at: string | null
           used_by: string | null
@@ -385,6 +386,7 @@ export type Database = {
           created_by: string
           id?: string
           is_active?: boolean
+          is_admin_invite?: boolean | null
           team_id?: string | null
           used_at?: string | null
           used_by?: string | null
@@ -396,6 +398,7 @@ export type Database = {
           created_by?: string
           id?: string
           is_active?: boolean
+          is_admin_invite?: boolean | null
           team_id?: string | null
           used_at?: string | null
           used_by?: string | null
