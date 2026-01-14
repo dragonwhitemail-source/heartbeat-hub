@@ -47,6 +47,13 @@ interface HistoryItem {
   geo: string | null;
 }
 
+// Generate a short readable ID from UUID for easy reference
+function generateShortId(uuid: string): string {
+  // Take first 8 chars of UUID and convert to uppercase alphanumeric
+  const hash = uuid.replace(/-/g, '').substring(0, 6).toUpperCase();
+  return `GEN-${hash}`;
+}
+
 // Helper function to calculate and format generation duration
 function getGenerationDuration(createdAt: string, completedAt: string | null): { text: string; colorClass: string } | null {
   if (!completedAt) return null;
@@ -263,8 +270,12 @@ function SingleHistoryItem({
               <div className="flex items-center" title={getStatusText(item.status, item.sale_price)}>
                 {getStatusIcon(item.status, item.sale_price)}
               </div>
+              {/* Short ID for easy reference */}
+              <Badge variant="secondary" className="text-xs px-1 py-0 h-5 font-mono bg-muted text-muted-foreground shrink-0">
+                {generateShortId(item.id)}
+              </Badge>
               {!compact && (
-                <span className="text-sm font-medium truncate max-w-[150px]" title={item.site_name || `Site ${item.number}`}>
+                <span className="text-sm font-medium truncate max-w-[120px]" title={item.site_name || `Site ${item.number}`}>
                   {item.site_name || `Site ${item.number}`}
                 </span>
               )}
@@ -413,6 +424,23 @@ function SingleHistoryItem({
         <CollapsibleContent>
           {/* Детальна інформація */}
           <div className="border-t px-4 py-3 space-y-3 bg-muted/20">
+            {/* ID for reference */}
+            <div className="flex items-center gap-2 pb-2 border-b border-muted">
+              <span className="text-muted-foreground text-xs">ID:</span>
+              <code className="font-mono text-sm bg-muted px-2 py-0.5 rounded select-all">{generateShortId(item.id)}</code>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => {
+                  navigator.clipboard.writeText(generateShortId(item.id));
+                  toast({ title: "ID скопійовано", description: generateShortId(item.id) });
+                }}
+                title="Копіювати ID"
+              >
+                <Files className="h-3 w-3" />
+              </Button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-sm">
               <div>
                 <span className="text-muted-foreground text-xs">{t("historyExtra.aiModel")}</span>
