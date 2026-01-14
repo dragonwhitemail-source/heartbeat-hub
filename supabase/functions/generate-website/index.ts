@@ -396,7 +396,132 @@ function enforceResponsiveImagesInFiles(
     return { ...f, content };
   });
 }
-// ============ END PHONE NUMBER VALIDATION ============
+
+// ============ POST-VALIDATION WITH AUTO-FIX ============
+/**
+ * Post-validation: ensures contact.html has phone/email and all pages have contact links in footer
+ */
+function postValidateAndFixFiles(
+  files: Array<{ path: string; content: string }>,
+  phone: string,
+  email?: string,
+  siteName?: string
+): { files: Array<{ path: string; content: string }>; fixes: string[] } {
+  const fixes: string[] = [];
+  const resultFiles = [...files];
+  
+  // Find contact.html
+  const contactIndex = resultFiles.findIndex(f => /contact\.html?$/i.test(f.path));
+  
+  // Extract footer from index.html for reference
+  const indexFile = resultFiles.find(f => /index\.html?$/i.test(f.path));
+  let footerHtml = '';
+  if (indexFile) {
+    const footerMatch = indexFile.content.match(/<footer[^>]*>[\s\S]*?<\/footer>/i);
+    if (footerMatch) {
+      footerHtml = footerMatch[0];
+    }
+  }
+  
+  // Fix 1: Ensure contact.html has phone and email
+  if (contactIndex >= 0) {
+    let contactContent = resultFiles[contactIndex].content;
+    const hasPhone = contactContent.includes(phone) || /tel:[+\d\s()-]+/i.test(contactContent);
+    const hasEmail = email ? contactContent.includes(email) : /@[\w.-]+\.\w+/.test(contactContent);
+    
+    if (!hasPhone) {
+      // Add phone to contact page
+      const phoneHtml = `<div class="contact-phone"><a href="tel:${phone.replace(/\s/g, '')}">${phone}</a></div>`;
+      
+      // Try to insert before </main> or </body>
+      if (/<\/main>/i.test(contactContent)) {
+        contactContent = contactContent.replace(/<\/main>/i, `${phoneHtml}\n</main>`);
+      } else if (/<\/body>/i.test(contactContent)) {
+        contactContent = contactContent.replace(/<\/body>/i, `${phoneHtml}\n</body>`);
+      }
+      resultFiles[contactIndex] = { ...resultFiles[contactIndex], content: contactContent };
+      fixes.push(`Added phone ${phone} to contact.html`);
+    }
+    
+    if (!hasEmail && email) {
+      const emailHtml = `<div class="contact-email"><a href="mailto:${email}">${email}</a></div>`;
+      contactContent = resultFiles[contactIndex].content;
+      if (/<\/main>/i.test(contactContent)) {
+        contactContent = contactContent.replace(/<\/main>/i, `${emailHtml}\n</main>`);
+      } else if (/<\/body>/i.test(contactContent)) {
+        contactContent = contactContent.replace(/<\/body>/i, `${emailHtml}\n</body>`);
+      }
+      resultFiles[contactIndex] = { ...resultFiles[contactIndex], content: contactContent };
+      fixes.push(`Added email ${email} to contact.html`);
+    }
+  }
+  
+  // Fix 2: Ensure all HTML pages have contact link and phone in footer
+  resultFiles.forEach((file, index) => {
+    if (!/\.(html?|php)$/i.test(file.path)) return;
+    
+    let content = file.content;
+    let modified = false;
+    
+    // Check if footer exists
+    const hasFooter = /<footer/i.test(content);
+    
+    if (hasFooter) {
+      // Check if footer has contact link
+      const footerMatch = content.match(/<footer[^>]*>([\s\S]*?)<\/footer>/i);
+      if (footerMatch) {
+        const footerContent = footerMatch[1];
+        const hasContactLink = /href=["']\.?\/?contact\.html?["']/i.test(footerContent) || 
+                               /href=["']#contact["']/i.test(footerContent) ||
+                               />contact</i.test(footerContent.toLowerCase());
+        const hasPhoneInFooter = footerContent.includes(phone) || /tel:[+\d\s()-]+/i.test(footerContent);
+        
+        if (!hasContactLink) {
+          // Add contact link to footer
+          const contactLink = `<a href="contact.html" class="footer-contact-link">Contact</a>`;
+          const newFooterContent = footerContent + `\n<div class="footer-contact-section">${contactLink}</div>`;
+          content = content.replace(footerMatch[0], `<footer${footerMatch[0].match(/<footer([^>]*)>/)?.[1] || ''}>${newFooterContent}</footer>`);
+          modified = true;
+          fixes.push(`Added contact link to footer in ${file.path}`);
+        }
+        
+        if (!hasPhoneInFooter) {
+          // Add phone to footer
+          const phoneLink = `<a href="tel:${phone.replace(/\s/g, '')}" class="footer-phone">${phone}</a>`;
+          content = content.replace(/<\/footer>/i, `<div class="footer-phone-section">${phoneLink}</div>\n</footer>`);
+          modified = true;
+          fixes.push(`Added phone ${phone} to footer in ${file.path}`);
+        }
+      }
+    } else {
+      // No footer - add a minimal one before </body>
+      const minimalFooter = `
+<footer class="site-footer" style="background:#222;color:#fff;padding:40px 20px;margin-top:auto;">
+  <div class="footer-container" style="max-width:1200px;margin:0 auto;text-align:center;">
+    <p><a href="contact.html" style="color:#fff;text-decoration:underline;">Contact Us</a></p>
+    <p><a href="tel:${phone.replace(/\s/g, '')}" style="color:#fff;">${phone}</a></p>
+    <p>&copy; ${new Date().getFullYear()} ${siteName || 'Company'}. All rights reserved.</p>
+  </div>
+</footer>`;
+      
+      if (/<\/body>/i.test(content)) {
+        content = content.replace(/<\/body>/i, `${minimalFooter}\n</body>`);
+        modified = true;
+        fixes.push(`Added missing footer with contact link and phone to ${file.path}`);
+      }
+    }
+    
+    if (modified) {
+      resultFiles[index] = { ...file, content };
+    }
+  });
+  
+  console.log(`📋 Post-validation fixes applied: ${fixes.length}`);
+  fixes.forEach(fix => console.log(`  ✓ ${fix}`));
+  
+  return { files: resultFiles, fixes };
+}
+// ============ END POST-VALIDATION ============
 
 const SYSTEM_PROMPT = `You are a prompt refiner for professional, multi-page websites.
 
@@ -5332,12 +5457,14 @@ async function runBackgroundGeneration(
       // - If phone is explicitly provided in prompt -> enforce EXACTLY that phone and DO NOT "fix" it.
       // - If phone is NOT provided -> generate a realistic phone based on geo and enforce it (so every site has a phone).
       let enforcedFiles = result.files;
+      let phoneToUse = desiredPhone || '';
 
       if (desiredPhone) {
         // User provided phone in prompt - enforce it directly without "fixing" first
         console.log(`[BG] Using explicit phone from prompt: "${desiredPhone}" - skipping phone number fixing`);
         enforcedFiles = enforcePhoneInFiles(enforcedFiles, desiredPhone);
         console.log(`[BG] Enforced phone "${desiredPhone}" across all files`);
+        phoneToUse = desiredPhone;
       } else {
         // No explicit phone - fix invalid placeholders, then enforce an auto-generated regional phone
         const { files: fixedFiles, totalFixed } = fixPhoneNumbersInFiles(result.files, geoToUse);
@@ -5348,9 +5475,17 @@ async function runBackgroundGeneration(
         console.log(`[BG] No phone in prompt. Auto-generated regional phone: "${autoPhone}" (geo: "${geoToUse || 'default'}")`);
         enforcedFiles = enforcePhoneInFiles(fixedFiles, autoPhone);
         console.log(`[BG] Enforced auto-generated phone "${autoPhone}" across all files`);
+        phoneToUse = autoPhone;
       }
       enforcedFiles = enforceSiteNameInFiles(enforcedFiles, desiredSiteName);
       enforcedFiles = enforceResponsiveImagesInFiles(enforcedFiles);
+
+      // POST-VALIDATION: Ensure contact.html has phone/email and all pages have contact links in footer
+      const emailMatch = prompt.match(/(?:email|e-mail|пошта|почта)[:\s]*([^\s,;\n]+@[^\s,;\n]+)/i);
+      const extractedEmail = emailMatch ? emailMatch[1].trim() : undefined;
+      const { files: validatedFiles, fixes } = postValidateAndFixFiles(enforcedFiles, phoneToUse, extractedEmail, desiredSiteName);
+      enforcedFiles = validatedFiles;
+      console.log(`[BG] Post-validation completed with ${fixes.length} fixes`);
 
       // Create zip base64 with fixed files
       const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");

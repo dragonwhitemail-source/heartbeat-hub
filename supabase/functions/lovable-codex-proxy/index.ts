@@ -847,6 +847,174 @@ async function createZipBase64(files: GeneratedFile[]): Promise<string> {
   return btoa(binary);
 }
 
+// ============ POST-VALIDATION WITH AUTO-FIX ============
+/**
+ * Generates a realistic phone number based on geo
+ */
+function generateRealisticPhone(geo?: string): string {
+  const geoLower = (geo || '').toLowerCase();
+  
+  const phoneFormats: Record<string, () => string> = {
+    'ua': () => `+380 ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 90) + 10}`,
+    'ukraine': () => `+380 ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 90) + 10}`,
+    'ru': () => `+7 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 90) + 10}-${Math.floor(Math.random() * 90) + 10}`,
+    'russia': () => `+7 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 90) + 10}-${Math.floor(Math.random() * 90) + 10}`,
+    'us': () => `+1 (${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+    'usa': () => `+1 (${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+    'de': () => `+49 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 9000000) + 1000000}`,
+    'germany': () => `+49 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 9000000) + 1000000}`,
+    'pt': () => `+351 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`,
+    'portugal': () => `+351 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`,
+    'es': () => `+34 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`,
+    'spain': () => `+34 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`,
+    'fr': () => `+33 ${Math.floor(Math.random() * 9) + 1} ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 90) + 10}`,
+    'france': () => `+33 ${Math.floor(Math.random() * 9) + 1} ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 90) + 10} ${Math.floor(Math.random() * 90) + 10}`,
+    'uk': () => `+44 ${Math.floor(Math.random() * 9000) + 1000} ${Math.floor(Math.random() * 900000) + 100000}`,
+    'gb': () => `+44 ${Math.floor(Math.random() * 9000) + 1000} ${Math.floor(Math.random() * 900000) + 100000}`,
+    'pl': () => `+48 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`,
+    'poland': () => `+48 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`,
+    'ro': () => `+40 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`,
+    'romania': () => `+40 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100}`,
+    'it': () => `+39 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 9000) + 1000}`,
+    'italy': () => `+39 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 9000) + 1000}`,
+  };
+  
+  for (const [key, generator] of Object.entries(phoneFormats)) {
+    if (geoLower.includes(key)) {
+      return generator();
+    }
+  }
+  
+  // Default US format
+  return `+1 (${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`;
+}
+
+/**
+ * Extracts phone number from prompt
+ */
+function extractPhoneFromPrompt(prompt: string): string | undefined {
+  const patterns = [
+    /(?:phone|tel|телефон|номер)[:\s]*([+\d\s().-]{10,20})/i,
+    /(\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{2,4}[\s.-]?\d{2,4}[\s.-]?\d{0,4})/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = prompt.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Post-validation: ensures contact.html has phone/email and all pages have contact links in footer
+ */
+function postValidateAndFixFiles(
+  files: GeneratedFile[],
+  phone: string,
+  email?: string,
+  siteName?: string
+): { files: GeneratedFile[]; fixes: string[] } {
+  const fixes: string[] = [];
+  const resultFiles = [...files];
+  
+  // Find contact.html
+  const contactIndex = resultFiles.findIndex(f => /contact\.html?$/i.test(f.path));
+  
+  // Fix 1: Ensure contact.html has phone and email
+  if (contactIndex >= 0) {
+    let contactContent = resultFiles[contactIndex].content;
+    const hasPhone = contactContent.includes(phone) || /tel:[+\d\s()-]+/i.test(contactContent);
+    const hasEmail = email ? contactContent.includes(email) : /@[\w.-]+\.\w+/.test(contactContent);
+    
+    if (!hasPhone) {
+      const phoneHtml = `<div class="contact-phone" style="margin:20px 0;font-size:1.2em;"><a href="tel:${phone.replace(/\s/g, '')}" style="color:inherit;text-decoration:none;">${phone}</a></div>`;
+      
+      if (/<\/main>/i.test(contactContent)) {
+        contactContent = contactContent.replace(/<\/main>/i, `${phoneHtml}\n</main>`);
+      } else if (/<\/body>/i.test(contactContent)) {
+        contactContent = contactContent.replace(/<\/body>/i, `${phoneHtml}\n</body>`);
+      }
+      resultFiles[contactIndex] = { ...resultFiles[contactIndex], content: contactContent };
+      fixes.push(`Added phone ${phone} to contact.html`);
+    }
+    
+    if (!hasEmail && email) {
+      const emailHtml = `<div class="contact-email" style="margin:20px 0;font-size:1.2em;"><a href="mailto:${email}" style="color:inherit;text-decoration:none;">${email}</a></div>`;
+      contactContent = resultFiles[contactIndex].content;
+      if (/<\/main>/i.test(contactContent)) {
+        contactContent = contactContent.replace(/<\/main>/i, `${emailHtml}\n</main>`);
+      } else if (/<\/body>/i.test(contactContent)) {
+        contactContent = contactContent.replace(/<\/body>/i, `${emailHtml}\n</body>`);
+      }
+      resultFiles[contactIndex] = { ...resultFiles[contactIndex], content: contactContent };
+      fixes.push(`Added email ${email} to contact.html`);
+    }
+  }
+  
+  // Fix 2: Ensure all HTML pages have contact link and phone in footer
+  resultFiles.forEach((file, index) => {
+    if (!/\.(html?|php)$/i.test(file.path)) return;
+    
+    let content = file.content;
+    let modified = false;
+    
+    const hasFooter = /<footer/i.test(content);
+    
+    if (hasFooter) {
+      const footerMatch = content.match(/<footer[^>]*>([\s\S]*?)<\/footer>/i);
+      if (footerMatch) {
+        const footerContent = footerMatch[1];
+        const hasContactLink = /href=["']\.?\/?contact\.html?["']/i.test(footerContent) || 
+                               /href=["']#contact["']/i.test(footerContent) ||
+                               />contact</i.test(footerContent.toLowerCase());
+        const hasPhoneInFooter = footerContent.includes(phone) || /tel:[+\d\s()-]+/i.test(footerContent);
+        
+        if (!hasContactLink) {
+          const contactLink = `<a href="contact.html" style="color:inherit;text-decoration:underline;">Contact</a>`;
+          content = content.replace(/<\/footer>/i, `<div class="footer-contact-section" style="margin-top:10px;">${contactLink}</div>\n</footer>`);
+          modified = true;
+          fixes.push(`Added contact link to footer in ${file.path}`);
+        }
+        
+        if (!hasPhoneInFooter) {
+          const phoneLink = `<a href="tel:${phone.replace(/\s/g, '')}" style="color:inherit;">${phone}</a>`;
+          content = content.replace(/<\/footer>/i, `<div class="footer-phone-section" style="margin-top:10px;">${phoneLink}</div>\n</footer>`);
+          modified = true;
+          fixes.push(`Added phone ${phone} to footer in ${file.path}`);
+        }
+      }
+    } else {
+      // No footer - add a minimal one before </body>
+      const minimalFooter = `
+<footer class="site-footer" style="background:#222;color:#fff;padding:40px 20px;margin-top:auto;">
+  <div class="footer-container" style="max-width:1200px;margin:0 auto;text-align:center;">
+    <p><a href="contact.html" style="color:#fff;text-decoration:underline;">Contact Us</a></p>
+    <p><a href="tel:${phone.replace(/\s/g, '')}" style="color:#fff;">${phone}</a></p>
+    <p>&copy; ${new Date().getFullYear()} ${siteName || 'Company'}. All rights reserved.</p>
+  </div>
+</footer>`;
+      
+      if (/<\/body>/i.test(content)) {
+        content = content.replace(/<\/body>/i, `${minimalFooter}\n</body>`);
+        modified = true;
+        fixes.push(`Added missing footer with contact link and phone to ${file.path}`);
+      }
+    }
+    
+    if (modified) {
+      resultFiles[index] = { ...file, content };
+    }
+  });
+  
+  console.log(`📋 Post-validation fixes applied: ${fixes.length}`);
+  fixes.forEach(fix => console.log(`  ✓ ${fix}`));
+  
+  return { files: resultFiles, fixes };
+}
+// ============ END POST-VALIDATION ============
+
 // ============================================================================
 // MAIN GENERATION FUNCTION
 // ============================================================================
@@ -992,7 +1160,7 @@ async function runLovableCodexGeneration(
     
     // Parse files from response
     console.log("📦 Parsing files from response...");
-    const files = parseFilesFromResponse(responseText);
+    let files = parseFilesFromResponse(responseText);
     
     if (files.length === 0) {
       console.error("No files parsed. Response preview:", responseText.substring(0, 1000));
@@ -1000,6 +1168,17 @@ async function runLovableCodexGeneration(
     }
     
     console.log(`📁 Parsed ${files.length} files: ${files.map(f => f.path).join(', ')}`);
+    
+    // POST-VALIDATION: Ensure contact.html has phone/email and all pages have contact links in footer
+    const phoneFromPrompt = extractPhoneFromPrompt(prompt);
+    const phoneToUse = phoneFromPrompt || generateRealisticPhone(geo);
+    const emailMatch = prompt.match(/(?:email|e-mail|пошта|почта)[:\s]*([^\s,;\n]+@[^\s,;\n]+)/i);
+    const extractedEmail = emailMatch ? emailMatch[1].trim() : undefined;
+    
+    console.log(`📋 Post-validation: phone="${phoneToUse}", email="${extractedEmail || 'none'}"`);
+    const { files: validatedFiles, fixes } = postValidateAndFixFiles(files, phoneToUse, extractedEmail, siteName);
+    files = validatedFiles;
+    console.log(`📋 Post-validation completed with ${fixes.length} fixes`);
     
     // Create ZIP
     console.log("📦 Creating ZIP archive...");
@@ -1024,7 +1203,7 @@ async function runLovableCodexGeneration(
       throw updateError;
     }
     
-    console.log(`✅ Lovable Codex generation completed: ${files.length} files, model: ${usedModel}`);
+    console.log(`✅ Lovable Codex generation completed: ${files.length} files, model: ${usedModel}, ${fixes.length} post-fixes`);
     
     // Send notification
     const { data: historyData } = await (supabase as any)
