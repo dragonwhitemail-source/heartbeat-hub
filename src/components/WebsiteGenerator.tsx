@@ -1126,12 +1126,28 @@ export function WebsiteGenerator() {
   // Get all site names (already an array)
   const getAllSiteNames = () => siteNames;
 
-  // Add a new site name from input
+  // Add a new site name from input - supports multiple names separated by newlines, commas, or spaces
   const addSiteName = () => {
-    const trimmed = currentSiteNameInput.trim();
-    if (trimmed && !siteNames.includes(trimmed)) {
-      setSiteNames(prev => [...prev, trimmed]);
+    const input = currentSiteNameInput.trim();
+    if (!input) return;
+    
+    // Split by newlines, commas, or multiple spaces
+    const names = input
+      .split(/[\n,]+/)
+      .map(n => n.trim())
+      .filter(n => n.length > 0 && !siteNames.includes(n));
+    
+    if (names.length > 0) {
+      setSiteNames(prev => [...prev, ...names]);
       setCurrentSiteNameInput("");
+      
+      // Show toast if multiple names were added
+      if (names.length > 1) {
+        toast({
+          title: t("genForm.sitesAdded") || "Сайти додано",
+          description: `${names.length} ${t("genForm.sitesCount") || "сайтів"}`,
+        });
+      }
     }
   };
 
@@ -1766,13 +1782,35 @@ export function WebsiteGenerator() {
                   <div className="flex gap-1">
                     <Input
                       id="siteName"
-                      placeholder="my-company"
+                      placeholder={t("genForm.siteNamePlaceholder") || "my-company або список доменів..."}
                       value={currentSiteNameInput}
                       onChange={(e) => setCurrentSiteNameInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
                           addSiteName();
+                        }
+                      }}
+                      onPaste={(e) => {
+                        // Handle paste - check if it contains multiple lines
+                        const pastedText = e.clipboardData.getData('text');
+                        if (pastedText.includes('\n') || pastedText.split(/[,\s]+/).filter(s => s.trim()).length > 1) {
+                          e.preventDefault();
+                          // Combine with current input and add all
+                          const combined = currentSiteNameInput + pastedText;
+                          const names = combined
+                            .split(/[\n,]+/)
+                            .map(n => n.trim())
+                            .filter(n => n.length > 0 && !siteNames.includes(n));
+                          
+                          if (names.length > 0) {
+                            setSiteNames(prev => [...prev, ...names]);
+                            setCurrentSiteNameInput("");
+                            toast({
+                              title: t("genForm.sitesAdded") || "Сайти додано",
+                              description: `${names.length} ${t("genForm.sitesCount") || "сайтів"}`,
+                            });
+                          }
                         }
                       }}
                       disabled={isImproving}

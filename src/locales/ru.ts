@@ -1347,6 +1347,8 @@ export const ru = {
     enterDescription: "Пожалуйста, введите описание сайта",
     selectTeamForGeneration: "Выберите команду для генерации",
     selectAtLeastOneLanguage: "Выберите хотя бы один язык",
+    sitesAdded: "Сайты добавлены",
+    siteNamePlaceholder: "домен.com или вставьте список...",
     confirmGeneration: "Подтвердить генерацию",
     confirmGenerationDesc: "Вы уверены, что хотите сгенерировать {count} сайтов?",
     costBreakdown: "Детализация стоимости",

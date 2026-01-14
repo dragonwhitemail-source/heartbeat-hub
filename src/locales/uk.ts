@@ -1347,6 +1347,8 @@ export const uk = {
     enterDescription: "Будь ласка, введіть опис сайту",
     selectTeamForGeneration: "Оберіть команду для генерації",
     selectAtLeastOneLanguage: "Оберіть хоча б одну мову",
+    sitesAdded: "Сайти додано",
+    siteNamePlaceholder: "домен.com або вставте список...",
     confirmGeneration: "Підтвердити генерацію",
     confirmGenerationDesc: "Ви впевнені, що хочете згенерувати {count} сайтів?",
     costBreakdown: "Деталізація вартості",
