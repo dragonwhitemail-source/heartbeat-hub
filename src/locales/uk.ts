@@ -1270,6 +1270,7 @@ export const uk = {
     errorPrefix: "Помилка",
     previewTab: "Превью",
     codeTab: "Код",
+    searchPlaceholder: "Пошук по назві, промпту, ID...",
   },
 
   genForm: {

@@ -1270,6 +1270,7 @@ export const ru = {
     errorPrefix: "Ошибка",
     previewTab: "Превью",
     codeTab: "Код",
+    searchPlaceholder: "Поиск по названию, промпту, ID...",
   },
 
   genForm: {
