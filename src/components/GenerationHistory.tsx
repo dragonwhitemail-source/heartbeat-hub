@@ -1445,11 +1445,15 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
   };
 
   const filteredHistory = history.filter((item) => {
-    // Search filter
+    // Search filter - by site_name, prompt text, or GEN-ID
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch = (item.site_name?.toLowerCase().includes(query)) ||
-        (item.prompt?.toLowerCase().includes(query));
+      const query = searchQuery.toLowerCase().trim();
+      const shortId = generateShortId(item.id).toLowerCase();
+      const matchesSearch = 
+        (item.site_name?.toLowerCase().includes(query)) ||
+        (item.prompt?.toLowerCase().includes(query)) ||
+        (shortId.includes(query)) ||
+        (item.id.toLowerCase().includes(query));
       if (!matchesSearch) return false;
     }
     
@@ -1604,14 +1608,24 @@ export function GenerationHistory({ onUsePrompt, defaultDateFilter = "all" }: Ge
           </Button>
         </div>
         <div className="flex items-center gap-2 mt-2">
-          <div className="relative flex-1 max-w-[200px]">
+          <div className="relative flex-1 max-w-[280px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
-              placeholder={t("common.search") + "..."}
+              placeholder={t("historyExtra.searchPlaceholder") || "Пошук по назві, промпту, ID..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-7 h-7 text-xs"
+              className="pl-7 pr-7 h-7 text-xs"
             />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-0.5 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
           </div>
           
           <Popover open={showFilters} onOpenChange={setShowFilters}>
