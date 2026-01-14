@@ -2407,9 +2407,10 @@ async function runGeneration({
   const useLovableAI = !!lovableApiKey;
   
   // Determine which model to use
+  // NOTE: Senior uses gemini-2.5-flash for reliability (gemini-2.5-pro times out frequently)
   const refineModel = useLovableAI ? "google/gemini-2.5-flash" : "gpt-4o-mini";
   const generateModel = useLovableAI 
-    ? (aiModel === "senior" ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash")
+    ? "google/gemini-2.5-flash"  // Always use flash for reliability
     : (aiModel === "senior" ? "gpt-4o" : "gpt-4o-mini");
 
   console.log(`PHP Generation using: Refine=${refineModel}, Generate=${generateModel}, Lovable AI=${useLovableAI}`);
@@ -2555,8 +2556,8 @@ async function runGeneration({
   };
 
   const generateOnce = async (opts: { strictFormat: boolean; timeoutMs?: number }) => {
-    // Reduced timeout: 120s default to leave room for retry within edge function limits
-    const timeoutMs = opts.timeoutMs ?? 120_000; // 2 minutes default
+    // 4 minute timeout for complete generation
+    const timeoutMs = opts.timeoutMs ?? 240_000; // 4 minutes default
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       console.error(`⏰ Generation timeout after ${timeoutMs / 1000}s`);
@@ -2588,7 +2589,7 @@ async function runGeneration({
               { role: "system", content: systemContent },
               { role: "user", content: userContent },
             ],
-            max_tokens: 32000,
+            max_tokens: 16000,  // Bounded for reliability
           }),
           signal: controller.signal,
         });
