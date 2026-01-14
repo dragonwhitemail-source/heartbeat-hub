@@ -3137,7 +3137,10 @@ export function WebsiteGenerator() {
                   <Trash2 className="h-3 w-3" />
                 </Button>
 
-                {/* Stop All Generations Button - always visible */}
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Stop All Generations Button - right side, disabled when no active generations */}
                 <Button
                   variant="destructive"
                   size="sm"
@@ -3173,20 +3176,17 @@ export function WebsiteGenerator() {
                     setIsStopping(false);
                     setIsSubmitting(false);
                   }}
-                  disabled={isStopping}
+                  disabled={isStopping || activeGenerationsCount === 0}
                 >
                   {isStopping ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
                     <>
                       <Square className="h-3 w-3 mr-1" />
-                      {t("genForm.stop")}
+                      {t("genForm.stop")} {activeGenerationsCount > 0 && `(${activeGenerationsCount})`}
                     </>
                   )}
                 </Button>
-
-                {/* Spacer */}
-                <div className="flex-1" />
 
                 {/* Credit warnings - right side */}
                 {insufficientBalance && teamPricing && (
