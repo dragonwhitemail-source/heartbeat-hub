@@ -2979,9 +2979,25 @@ async function runGeneration({
       return generatedFiles;
     }
     
-    console.log(`⚠️ Missing pages from prompt specification: ${missingPages.join(', ')}`);
+    // CRITICAL: Do NOT create placeholder pages - they look unprofessional
+    // Only log missing pages as warnings - AI should have generated them
+    // Critical pages that MUST exist (don't create placeholders for these)
+    const criticalPages = ['index.html', 'about.html', 'contact.html', 'posts.html'];
+    const missingCritical = missingPages.filter(p => criticalPages.includes(p));
+    const missingSecondary = missingPages.filter(p => !criticalPages.includes(p));
     
-    // Extract header/footer from index.html for consistent styling
+    if (missingCritical.length > 0) {
+      console.log(`🚨 CRITICAL: Missing essential pages that AI should have generated: ${missingCritical.join(', ')}`);
+      console.log(`⚠️ These pages will NOT be auto-generated as placeholders - the AI output was incomplete`);
+    }
+    
+    if (missingSecondary.length > 0) {
+      console.log(`⚠️ Missing secondary pages: ${missingSecondary.join(', ')}`);
+    }
+    
+    // Only create placeholders for NON-critical secondary pages like article.html, cookies.html
+    // These are supplementary and acceptable as placeholders
+    const safeToPlaceholder = ['article.html', 'cookies.html'];
     const indexFile = generatedFiles.find(f => f.path.toLowerCase() === "index.html");
     let headerHtml = "";
     let footerHtml = "";
@@ -2997,17 +3013,20 @@ async function runGeneration({
       if (titleMatch) siteName = titleMatch[1].split(/[-|]/)[0].trim();
     }
     
-    // Generate placeholder pages for missing ones with basic structure
-    for (const missingPage of missingPages) {
-      // Determine page title from the structure description
+    let addedCount = 0;
+    for (const missingPage of missingSecondary) {
+      // Only create placeholder for safe-to-placeholder pages
+      if (!safeToPlaceholder.includes(missingPage)) {
+        console.log(`⏭️ Skipping placeholder for ${missingPage} - not in safe list`);
+        continue;
+      }
+      
       const pageDescPattern = new RegExp(`[◆•\\-\\*]?\\s*${missingPage.replace('.html', '')}(?:\\.html)?\\s*[—\\-:]\\s*([^◆•\\n]+)`, 'i');
       const descMatch = structureSection.match(pageDescPattern);
       const pageDesc = descMatch ? descMatch[1].trim() : missingPage.replace('.html', '').replace(/-/g, ' ');
-      
-      // Generate page title
       const pageTitle = pageDesc.split(/[;,]/)[0].trim().slice(0, 50) || missingPage.replace('.html', '').replace(/-/g, ' ');
       
-      console.log(`📄 Creating missing page: ${missingPage} (${pageTitle})`);
+      console.log(`📄 Creating placeholder for secondary page: ${missingPage}`);
       
       const pageContent = `<!DOCTYPE html>
 <html lang="${lang}">
@@ -3024,15 +3043,6 @@ async function runGeneration({
         <section class="page-hero">
             <div class="container">
                 <h1>${pageTitle}</h1>
-                <p>${pageDesc.slice(0, 200)}</p>
-            </div>
-        </section>
-        
-        <section class="section">
-            <div class="container">
-                <div class="content-area">
-                    <p>This page is under construction. Please check back later for updates.</p>
-                </div>
             </div>
         </section>
     </main>
@@ -3045,9 +3055,12 @@ async function runGeneration({
 </html>`;
       
       generatedFiles.push({ path: missingPage, content: pageContent });
+      addedCount++;
     }
     
-    console.log(`✅ Added ${missingPages.length} missing pages from prompt specification`);
+    if (addedCount > 0) {
+      console.log(`✅ Added ${addedCount} placeholder pages for secondary content`);
+    }
     
     return generatedFiles;
   };
