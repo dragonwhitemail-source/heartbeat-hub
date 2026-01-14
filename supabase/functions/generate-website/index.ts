@@ -2941,6 +2941,117 @@ async function runGeneration({
     });
   };
 
+  // NEW: Parse Website Structure from prompt and ensure all specified pages exist
+  const ensurePagesFromPrompt = (generatedFiles: GeneratedFile[], promptText: string, lang: string = "en"): GeneratedFile[] => {
+    // Extract Website Structure section from prompt
+    const structureMatch = promptText.match(/Website Structure:?\s*([\s\S]*?)(?:\n\n|\n(?=[A-Z][a-z]+:)|$)/i);
+    if (!structureMatch) {
+      console.log(`📋 No "Website Structure" section found in prompt, skipping page validation`);
+      return generatedFiles;
+    }
+    
+    const structureSection = structureMatch[1];
+    
+    // Extract all HTML page names from the structure (format: ◆ page.html or page.html —)
+    const pagePattern = /[◆•\-\*]?\s*([a-zA-Z0-9_-]+\.html)\s*[—\-:]/g;
+    const specifiedPages: string[] = [];
+    let match;
+    while ((match = pagePattern.exec(structureSection)) !== null) {
+      const pageName = match[1].toLowerCase();
+      if (!specifiedPages.includes(pageName)) {
+        specifiedPages.push(pageName);
+      }
+    }
+    
+    if (specifiedPages.length === 0) {
+      console.log(`📋 No HTML pages found in Website Structure section`);
+      return generatedFiles;
+    }
+    
+    console.log(`📋 Pages specified in prompt: ${specifiedPages.join(', ')}`);
+    
+    // Check which pages are missing
+    const existingPages = new Set(generatedFiles.map(f => f.path.toLowerCase()));
+    const missingPages = specifiedPages.filter(page => !existingPages.has(page));
+    
+    if (missingPages.length === 0) {
+      console.log(`✅ All ${specifiedPages.length} specified pages are present in generated files`);
+      return generatedFiles;
+    }
+    
+    console.log(`⚠️ Missing pages from prompt specification: ${missingPages.join(', ')}`);
+    
+    // Extract header/footer from index.html for consistent styling
+    const indexFile = generatedFiles.find(f => f.path.toLowerCase() === "index.html");
+    let headerHtml = "";
+    let footerHtml = "";
+    let siteName = "Company";
+    
+    if (indexFile) {
+      const content = indexFile.content;
+      const headerMatch = content.match(/<header[\s\S]*?<\/header>/i);
+      if (headerMatch) headerHtml = headerMatch[0];
+      const footerMatch = content.match(/<footer[\s\S]*?<\/footer>/i);
+      if (footerMatch) footerHtml = footerMatch[0];
+      const titleMatch = content.match(/<title>([^<]+)<\/title>/i);
+      if (titleMatch) siteName = titleMatch[1].split(/[-|]/)[0].trim();
+    }
+    
+    // Generate placeholder pages for missing ones with basic structure
+    for (const missingPage of missingPages) {
+      // Determine page title from the structure description
+      const pageDescPattern = new RegExp(`[◆•\\-\\*]?\\s*${missingPage.replace('.html', '')}(?:\\.html)?\\s*[—\\-:]\\s*([^◆•\\n]+)`, 'i');
+      const descMatch = structureSection.match(pageDescPattern);
+      const pageDesc = descMatch ? descMatch[1].trim() : missingPage.replace('.html', '').replace(/-/g, ' ');
+      
+      // Generate page title
+      const pageTitle = pageDesc.split(/[;,]/)[0].trim().slice(0, 50) || missingPage.replace('.html', '').replace(/-/g, ' ');
+      
+      console.log(`📄 Creating missing page: ${missingPage} (${pageTitle})`);
+      
+      const pageContent = `<!DOCTYPE html>
+<html lang="${lang}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${siteName} - ${pageTitle}</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    ${headerHtml}
+    
+    <main>
+        <section class="page-hero">
+            <div class="container">
+                <h1>${pageTitle}</h1>
+                <p>${pageDesc.slice(0, 200)}</p>
+            </div>
+        </section>
+        
+        <section class="section">
+            <div class="container">
+                <div class="content-area">
+                    <p>This page is under construction. Please check back later for updates.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    ${footerHtml}
+    
+    <script src="script.js"></script>
+    <script src="cookie-banner.js"></script>
+</body>
+</html>`;
+      
+      generatedFiles.push({ path: missingPage, content: pageContent });
+    }
+    
+    console.log(`✅ Added ${missingPages.length} missing pages from prompt specification`);
+    
+    return generatedFiles;
+  };
+
   // MANDATORY: Ensure all required legal pages exist and have proper content
   // Also replaces incomplete/empty pages (less than 2000 chars for legal pages)
   const ensureMandatoryPages = (generatedFiles: GeneratedFile[], lang: string = "en"): GeneratedFile[] => {
@@ -4983,6 +5094,7 @@ section img:not(.avatar):not(.partner-logo):not(.client-logo):not(.testimonial-i
   finalFiles = ensureQualityCSS(finalFiles);
   finalFiles = fixPlaceholderImages(finalFiles); // Fix placeholder images
   finalFiles = validateHtmlContent(finalFiles); // Validate HTML content
+  finalFiles = ensurePagesFromPrompt(finalFiles, prompt, language || "en"); // Ensure pages from Website Structure
   finalFiles = ensureMandatoryPages(finalFiles, language || "en");
   console.log(`📁 Final files count (with all mandatory files): ${finalFiles.length}`);
 
