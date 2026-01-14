@@ -33,24 +33,29 @@ serve(async (req) => {
       );
     }
 
-    // Verify requesting user is an admin
+    // Verify requesting user's JWT and get claims
+    const token = authHeader.replace("Bearer ", "");
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      console.error("Failed to get claims:", claimsError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if requester is admin
-    const { data: adminRole } = await supabase
+    const userId = claimsData.claims.sub as string;
+
+    // Check if requester is admin using service role
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: adminRole } = await adminClient
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("role", "admin")
       .maybeSingle();
 
@@ -92,14 +97,14 @@ serve(async (req) => {
     await verifyClient.auth.signOut();
 
     if (error) {
-      console.log("Super admin verification failed for user:", user.id);
+      console.log("Super admin verification failed for user:", userId);
       return new Response(
         JSON.stringify({ valid: false }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Super admin verification successful by user:", user.id);
+    console.log("Super admin verification successful by user:", userId);
     return new Response(
       JSON.stringify({ valid: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
