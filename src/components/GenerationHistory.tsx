@@ -229,7 +229,7 @@ function SingleHistoryItem({
     }
     switch (status) {
       case "pending": return <Clock className="h-4 w-4 text-muted-foreground" />;
-      case "generating": return <Loader2 className="h-4 w-4 animate-spin text-primary" />;
+      case "generating": return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />;
       case "completed": return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case "failed": return <XCircle className="h-4 w-4 text-destructive" />;
       default: return <Clock className="h-4 w-4 text-muted-foreground" />;
@@ -272,6 +272,14 @@ function SingleHistoryItem({
               {item.geo && (
                 <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">
                   {getGeoLabel(item.geo)}
+                </Badge>
+              )}
+              {item.status === "generating" && (
+                <Badge 
+                  variant="outline" 
+                  className="text-xs px-1.5 py-0 h-5 border-yellow-500/50 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 animate-pulse"
+                >
+                  {t("history.generating")}
                 </Badge>
               )}
               {item.status === "completed" && (() => {
