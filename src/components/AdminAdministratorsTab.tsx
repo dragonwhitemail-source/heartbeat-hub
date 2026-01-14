@@ -49,14 +49,12 @@ export const AdminAdministratorsTab = () => {
   // Add admin dialog
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [superAdminPassword, setSuperAdminPassword] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [userComboboxOpen, setUserComboboxOpen] = useState(false);
   
   // Remove admin dialog  
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [adminToRemove, setAdminToRemove] = useState<Admin | null>(null);
-  const [removePassword, setRemovePassword] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -95,44 +93,8 @@ export const AdminAdministratorsTab = () => {
     setLoading(false);
   };
 
-  // Secure server-side verification using edge function
-  const verifySuperAdminPassword = async (password: string): Promise<boolean> => {
-    try {
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
-      
-      if (!accessToken) {
-        console.error("No access token available");
-        return false;
-      }
-
-      const response = await fetch(
-        `https://jyrjwcuwbuqkwccvdfst.supabase.co/functions/v1/verify-super-admin`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ password }),
-        }
-      );
-
-      if (!response.ok) {
-        console.error("Verification request failed:", response.status);
-        return false;
-      }
-
-      const data = await response.json();
-      return data.valid === true;
-    } catch (error) {
-      console.error("Error verifying super admin:", error);
-      return false;
-    }
-  };
-
   const handleAddAdmin = async () => {
-    if (!selectedUserId || !superAdminPassword) {
+    if (!selectedUserId) {
       toast({
         title: t("common.error"),
         description: t("admin.selectUserForAdmin"),
@@ -142,18 +104,6 @@ export const AdminAdministratorsTab = () => {
     }
 
     setVerifying(true);
-    
-    const isValid = await verifySuperAdminPassword(superAdminPassword);
-    
-    if (!isValid) {
-      toast({
-        title: t("common.error"),
-        description: t("admin.passwordIncorrect"),
-        variant: "destructive"
-      });
-      setVerifying(false);
-      return;
-    }
 
     try {
       const { error } = await supabase
@@ -172,7 +122,6 @@ export const AdminAdministratorsTab = () => {
 
       setAddDialogOpen(false);
       setSelectedUserId("");
-      setSuperAdminPassword("");
       fetchData();
     } catch (error) {
       toast({
@@ -186,28 +135,11 @@ export const AdminAdministratorsTab = () => {
   };
 
   const handleRemoveAdmin = async () => {
-    if (!adminToRemove || !removePassword) {
-      toast({
-        title: t("common.error"),
-        description: t("admin.superAdminPassword"),
-        variant: "destructive"
-      });
+    if (!adminToRemove) {
       return;
     }
 
     setVerifying(true);
-    
-    const isValid = await verifySuperAdminPassword(removePassword);
-    
-    if (!isValid) {
-      toast({
-        title: t("common.error"),
-        description: t("admin.passwordIncorrect"),
-        variant: "destructive"
-      });
-      setVerifying(false);
-      return;
-    }
 
     try {
       const { error } = await supabase
@@ -225,7 +157,6 @@ export const AdminAdministratorsTab = () => {
 
       setRemoveDialogOpen(false);
       setAdminToRemove(null);
-      setRemovePassword("");
       fetchData();
     } catch (error) {
       toast({
@@ -366,18 +297,9 @@ export const AdminAdministratorsTab = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div>
-                  <Label>{t("admin.superAdminPassword")}</Label>
-                  <Input
-                    type="password"
-                    value={superAdminPassword}
-                    onChange={(e) => setSuperAdminPassword(e.target.value)}
-                    placeholder={t("auth.password")}
-                  />
-                </div>
                 <Button 
                   onClick={handleAddAdmin} 
-                  disabled={!selectedUserId || !superAdminPassword || verifying}
+                  disabled={!selectedUserId || verifying}
                   className="w-full"
                 >
                   {verifying ? (
@@ -449,38 +371,27 @@ export const AdminAdministratorsTab = () => {
               {t("admin.confirmRemove")} {adminToRemove?.display_name || adminToRemove?.user_id.slice(0, 8)}?
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>{t("admin.superAdminPassword")}</Label>
-              <Input
-                type="password"
-                value={removePassword}
-                onChange={(e) => setRemovePassword(e.target.value)}
-                placeholder={t("auth.password")}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => setRemoveDialogOpen(false)}
-                className="flex-1"
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={handleRemoveAdmin} 
-                disabled={!removePassword || verifying}
-                className="flex-1"
-              >
-                {verifying ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ShieldOff className="h-4 w-4 mr-2" />
-                )}
-                {t("admin.removeAdmin")}
-              </Button>
-            </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setRemoveDialogOpen(false)}
+              className="flex-1"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleRemoveAdmin} 
+              disabled={verifying}
+              className="flex-1"
+            >
+              {verifying ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <ShieldOff className="h-4 w-4 mr-2" />
+              )}
+              {t("admin.removeAdmin")}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
